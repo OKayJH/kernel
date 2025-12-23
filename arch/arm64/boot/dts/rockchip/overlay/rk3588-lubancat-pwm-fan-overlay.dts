@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target-path = "/pwm-fan";
+
+		__overlay__ {
+			status = "okay";
+			#cooling-cells = <2>;
+			pwms = <&pwm11 0 10000000 0>;
+			cooling-levels = <0 50 100 200 255>;
+			rockchip,temp-trips = <
+				40000	1
+				45000	2
+				50000	3
+				55000	4
+			>;
+		};
+	};
+};
