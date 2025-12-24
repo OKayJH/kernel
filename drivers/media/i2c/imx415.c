@@ -157,6 +157,12 @@
 #define IMX415_GROUP_HOLD_START		0x01
 #define IMX415_GROUP_HOLD_END		0x00
 
+/* External sync: slave mode needs XVS/XHS pins to be Hi-Z to avoid conflicts */
+#define IMX415_REG_XMASTER		0x3003 /* bit0: 0=master, 1=slave */
+#define IMX415_REG_XVS_XHS_DRV		0x30C1 /* [3:2]=XHS, [1:0]=XVS */
+#define IMX415_XMASTER_MASK		BIT(0)
+#define IMX415_XVS_XHS_DRV_MASK		0x0f
+
 /* Basic Readout Lines. Number of necessary readout lines in sensor */
 #define BRL_ALL				2228u
 #define BRL_BINNING			1115u
@@ -242,6 +248,7 @@ struct imx415 {
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	u32 lanes;
 	u32 capture_mode;
+	enum rkmodule_sync_mode	sync_mode;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -2033,6 +2040,47 @@ static int imx415_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
 	return 0;
 }
 
+static int imx415_update_bits(struct i2c_client *client, u16 reg, u8 mask, u8 val)
+{
+	u32 tmp;
+	int ret;
+
+	ret = imx415_read_reg(client, reg, IMX415_REG_VALUE_08BIT, &tmp);
+	if (ret)
+		return ret;
+
+	tmp = (tmp & ~mask) | (val & mask);
+
+	return imx415_write_reg(client, reg, IMX415_REG_VALUE_08BIT, tmp);
+}
+
+static int imx415_apply_sync_mode_regs(struct imx415 *imx415)
+{
+	u8 xmaster = 0;
+	u8 xvs_xhs_drv = 0;
+	int ret;
+
+	/*
+	 * SLAVE_MODE:
+	 * - XMASTER bit0 = 1
+	 * - XVS/XHS drv = Hi-Z (both set to 3) => 0x30C1[3:0] = 0b1111
+	 *
+	 * Other modes(default/master): clear these bits.
+	 */
+	if (imx415->sync_mode == SLAVE_MODE) {
+		xmaster = IMX415_XMASTER_MASK;
+		xvs_xhs_drv = IMX415_XVS_XHS_DRV_MASK;
+	}
+
+	ret = imx415_update_bits(imx415->client, IMX415_REG_XMASTER,
+				 IMX415_XMASTER_MASK, xmaster);
+	if (ret)
+		return ret;
+
+	return imx415_update_bits(imx415->client, IMX415_REG_XVS_XHS_DRV,
+				  IMX415_XVS_XHS_DRV_MASK, xvs_xhs_drv);
+}
+
 static int imx415_get_reso_dist(const struct imx415_mode *mode,
 				struct v4l2_mbus_framefmt *framefmt)
 {
@@ -2745,6 +2793,12 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ch_info = (struct rkmodule_channel_info *)arg;
 		ret = imx415_get_channel_info(imx415, ch_info);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		*((u32 *)arg) = imx415->sync_mode;
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		imx415->sync_mode = *((u32 *)arg);
+		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		if (imx415->cur_mode->hdr_mode == HDR_X2) {
 			dphy_param = (struct rkmodule_csi_dphy_param *)arg;
@@ -2775,6 +2829,7 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 	u32  stream;
 	u32 brl = 0;
+	u32 sync_mode;
 	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
@@ -2879,6 +2934,21 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(ch_info);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		ret = imx415_ioctl(sd, cmd, &sync_mode);
+		if (!ret) {
+			ret = copy_to_user(up, &sync_mode, sizeof(u32));
+			if (ret)
+				ret = -EFAULT;
+		}
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		ret = copy_from_user(&sync_mode, up, sizeof(u32));
+		if (!ret)
+			ret = imx415_ioctl(sd, cmd, &sync_mode);
+		else
+			ret = -EFAULT;
+		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
 		if (!dphy_param) {
@@ -2931,6 +3001,11 @@ static int __imx415_start_stream(struct imx415 *imx415)
 			return ret;
 		}
 	}
+
+	ret = imx415_apply_sync_mode_regs(imx415);
+	if (ret)
+		return ret;
+
 	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
 				IMX415_REG_VALUE_08BIT, 0);
 }
@@ -3491,6 +3566,7 @@ static int imx415_probe(struct i2c_client *client,
 	char facing[2];
 	int ret;
 	u32 hdr_mode;
+	const char *sync_mode_name = NULL;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -3512,6 +3588,18 @@ static int imx415_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
+	}
+
+	imx415->sync_mode = NO_SYNC_MODE;
+	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE,
+				      &sync_mode_name);
+	if (!ret) {
+		if (strcmp(sync_mode_name, RKMODULE_EXTERNAL_MASTER_MODE) == 0)
+			imx415->sync_mode = EXTERNAL_MASTER_MODE;
+		else if (strcmp(sync_mode_name, RKMODULE_INTERNAL_MASTER_MODE) == 0)
+			imx415->sync_mode = INTERNAL_MASTER_MODE;
+		else if (strcmp(sync_mode_name, RKMODULE_SLAVE_MODE) == 0)
+			imx415->sync_mode = SLAVE_MODE;
 	}
 
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
