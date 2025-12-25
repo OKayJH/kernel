@@ -42,6 +42,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
+#include <linux/ktime.h>
 #include <linux/version.h>
 #include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
@@ -49,6 +50,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pwm.h>
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
@@ -71,6 +73,14 @@
 #define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
 #define DATA_LANES   			"rockchip,imx415-data-lanes"
 #define OF_CAMERA_CAPTURE_MODE   "rockchip,imx415-capture-mode"
+/* External trigger via PWM (XVS/XHS) */
+#define OF_XVS_DUTY_NS			"rockchip,xvs-duty-ns"
+#define OF_XHS_DUTY_NS			"rockchip,xhs-duty-ns"
+#define IMX415_XVS_DUTY_NS_DEFAULT	14000u
+#define IMX415_XHS_DUTY_NS_DEFAULT	200u
+
+/* V4L2 custom control for single-frame trigger */
+#define V4L2_CID_IMX415_USER_TRIGGER	(V4L2_CID_PRIVATE_BASE + 0x1000)
 
 #define IMX415_XVCLK_FREQ_37M		37125000
 #define IMX415_XVCLK_FREQ_27M		27000000
@@ -249,6 +259,18 @@ struct imx415 {
 	u32 lanes;
 	u32 capture_mode;
 	enum rkmodule_sync_mode	sync_mode;
+
+	/* External trigger via PWM (XVS/XHS) */
+	struct pwm_device	*xvs_pwm;
+	struct pwm_device	*xhs_pwm;
+	u32			xvs_duty_ns;
+	u32			xhs_duty_ns;
+	bool			xhs_pwm_enabled;
+	u32			trigger_count;
+	u64			last_trigger_ns;
+
+	/* V4L2 control */
+	struct v4l2_ctrl	*user_trigger;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -2081,6 +2103,181 @@ static int imx415_apply_sync_mode_regs(struct imx415 *imx415)
 				  IMX415_XVS_XHS_DRV_MASK, xvs_xhs_drv);
 }
 
+static struct pwm_device *imx415_devm_pwm_get_optional(struct device *dev,
+						       const char *con_id)
+{
+	struct pwm_device *pwm;
+	int ret;
+
+	pwm = devm_pwm_get(dev, con_id);
+	if (IS_ERR(pwm)) {
+		ret = PTR_ERR(pwm);
+		if (ret == -ENOENT || ret == -ENODEV)
+			return NULL;
+		return pwm;
+	}
+
+	return pwm;
+}
+
+static int imx415_set_xhs_pwm(struct imx415 *imx415, bool enable)
+{
+	struct pwm_state state;
+	int ret;
+
+	if (!imx415->xhs_pwm)
+		return 0;
+
+	pwm_init_state(imx415->xhs_pwm, &state);
+	if (enable) {
+		state.duty_cycle = imx415->xhs_duty_ns;
+		state.enabled = true;
+	} else {
+		state.duty_cycle = 0;
+		state.enabled = false;
+	}
+
+	ret = pwm_apply_state(imx415->xhs_pwm, &state);
+	if (!ret)
+		imx415->xhs_pwm_enabled = enable;
+
+	return ret;
+}
+
+static int imx415_pulse_xvs_pwm(struct imx415 *imx415)
+{
+	struct pwm_state state;
+	u32 duty_ns;
+	u32 wait_us;
+	u64 period_us;
+	int ret;
+
+	if (!imx415->xvs_pwm)
+		return -ENODEV;
+
+	pwm_init_state(imx415->xvs_pwm, &state);
+	duty_ns = imx415->xvs_duty_ns;
+	if (!duty_ns)
+		duty_ns = IMX415_XVS_DUTY_NS_DEFAULT;
+
+	if (state.period && duty_ns >= state.period)
+		return -EINVAL;
+
+	state.duty_cycle = duty_ns;
+	state.enabled = true;
+	ret = pwm_apply_state(imx415->xvs_pwm, &state);
+	if (ret)
+		return ret;
+
+	/*
+	 * We only need a single XVS pulse. The PWM runs periodically when enabled,
+	 * so we disable it before the next period to avoid extra pulses.
+	 */
+	period_us = div_u64(state.period, 1000);
+	wait_us = DIV_ROUND_UP(duty_ns, 1000) + 20;
+	if (wait_us < 50)
+		wait_us = 50;
+	if (period_us && wait_us >= period_us)
+		wait_us = (period_us > 1) ? (u32)(period_us - 1) : 1;
+
+	usleep_range(wait_us, wait_us + 20);
+
+	state.duty_cycle = 0;
+	state.enabled = false;
+	return pwm_apply_state(imx415->xvs_pwm, &state);
+}
+
+static int imx415_trigger_one_frame_locked(struct imx415 *imx415)
+{
+	u32 xhs_count;
+	int ret;
+
+	if (imx415->sync_mode != SLAVE_MODE)
+		return -EINVAL;
+	if (!imx415->streaming)
+		return -EBUSY;
+	if (!imx415->xvs_pwm)
+		return -ENODEV;
+
+	/*
+	 * One frame requires exactly VMAX(VTS) lines worth of XHS pulses.
+	 * For the default 4K@30 mode: VTS = 0x08ca = 2250 (see mode->vts_def).
+	 */
+	xhs_count = imx415->cur_vts ? imx415->cur_vts : imx415->cur_mode->vts_def;
+
+	/*
+	 * Keep XHS running continuously (line sync). Each trigger outputs one XVS
+	 * pulse. The required XHS count per frame is VMAX/VTS (default 2250).
+	 *
+	 * To guarantee the "XHS count per frame" relationship when triggering
+	 * multiple times, enforce a minimum interval of one frame between triggers.
+	 */
+	if (imx415->xhs_pwm && !imx415->xhs_pwm_enabled) {
+		ret = imx415_set_xhs_pwm(imx415, true);
+		if (ret)
+			return ret;
+	}
+
+	if (imx415->xhs_pwm_enabled) {
+		struct pwm_state xhs_state;
+		u64 frame_ns;
+		u64 now_ns;
+
+		pwm_init_state(imx415->xhs_pwm, &xhs_state);
+		frame_ns = (u64)xhs_count * xhs_state.period;
+		now_ns = ktime_get_ns();
+		if (imx415->last_trigger_ns && frame_ns &&
+		    now_ns - imx415->last_trigger_ns < frame_ns) {
+			u64 remain_ns = frame_ns - (now_ns - imx415->last_trigger_ns);
+			u32 remain_us = (u32)DIV_ROUND_UP_ULL(remain_ns, 1000);
+
+			if (remain_us)
+				usleep_range(remain_us, remain_us + 200);
+		}
+	}
+
+	ret = imx415_pulse_xvs_pwm(imx415);
+	if (!ret) {
+		imx415->trigger_count++;
+		imx415->last_trigger_ns = ktime_get_ns();
+	}
+
+	return ret;
+}
+
+static ssize_t trigger_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct imx415 *imx415 = to_imx415(sd);
+	unsigned int val;
+	int ret;
+
+	if (kstrtouint(buf, 0, &val))
+		return -EINVAL;
+	if (!val)
+		return count;
+
+	mutex_lock(&imx415->mutex);
+	ret = imx415_trigger_one_frame_locked(imx415);
+	mutex_unlock(&imx415->mutex);
+
+	return ret ? ret : count;
+}
+
+static DEVICE_ATTR_WO(trigger);
+
+static struct attribute *imx415_attrs[] = {
+	&dev_attr_trigger.attr,
+	NULL
+};
+
+static const struct attribute_group imx415_attr_group = {
+	.attrs = imx415_attrs,
+};
+
 static int imx415_get_reso_dist(const struct imx415_mode *mode,
 				struct v4l2_mbus_framefmt *framefmt)
 {
@@ -3006,17 +3203,28 @@ static int __imx415_start_stream(struct imx415 *imx415)
 	if (ret)
 		return ret;
 
+	if (imx415->sync_mode == SLAVE_MODE) {
+		ret = imx415_set_xhs_pwm(imx415, true);
+		if (ret)
+			return ret;
+	}
+
 	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
 				IMX415_REG_VALUE_08BIT, 0);
 }
 
 static int __imx415_stop_stream(struct imx415 *imx415)
 {
+	int ret;
+
 	imx415->has_init_exp = false;
 	if (imx415->is_thunderboot)
 		imx415->is_first_streamoff = true;
-	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
-				IMX415_REG_VALUE_08BIT, 1);
+	ret = imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
+			       IMX415_REG_VALUE_08BIT, 1);
+	if (imx415->sync_mode == SLAVE_MODE)
+		imx415_set_xhs_pwm(imx415, false);
+	return ret;
 }
 
 static int imx415_s_stream(struct v4l2_subdev *sd, int on)
@@ -3329,6 +3537,9 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 	int ret = 0;
 	u32 shr0 = 0;
 
+	if (ctrl->id == V4L2_CID_IMX415_USER_TRIGGER)
+		return imx415_trigger_one_frame_locked(imx415);
+
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
@@ -3444,6 +3655,18 @@ static const struct v4l2_ctrl_ops imx415_ctrl_ops = {
 	.s_ctrl = imx415_set_ctrl,
 };
 
+static const struct v4l2_ctrl_config imx415_user_trigger_ctrl = {
+	.ops	= &imx415_ctrl_ops,
+	.id	= V4L2_CID_IMX415_USER_TRIGGER,
+	.type	= V4L2_CTRL_TYPE_BUTTON,
+	.name	= "user_trigger",
+	.min	= 0,
+	.max	= 0,
+	.step	= 0,
+	.def	= 0,
+	.flags	= V4L2_CTRL_FLAG_WRITE_ONLY,
+};
+
 static int imx415_initialize_controls(struct imx415 *imx415)
 {
 	const struct imx415_mode *mode;
@@ -3457,7 +3680,7 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 
 	handler = &imx415->ctrl_handler;
 	mode = imx415->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &imx415->mutex;
@@ -3501,6 +3724,9 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 
 	v4l2_ctrl_new_std(handler, &imx415_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(handler, &imx415_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+	imx415->user_trigger = v4l2_ctrl_new_custom(handler,
+						    &imx415_user_trigger_ctrl,
+						    NULL);
 
 	if (handler->error) {
 		ret = handler->error;
@@ -3609,6 +3835,20 @@ static int imx415_probe(struct i2c_client *client,
 	}
 	imx415->client = client;
 
+	imx415->xvs_duty_ns = IMX415_XVS_DUTY_NS_DEFAULT;
+	of_property_read_u32(node, OF_XVS_DUTY_NS, &imx415->xvs_duty_ns);
+	imx415->xhs_duty_ns = IMX415_XHS_DUTY_NS_DEFAULT;
+	of_property_read_u32(node, OF_XHS_DUTY_NS, &imx415->xhs_duty_ns);
+
+	imx415->xvs_pwm = imx415_devm_pwm_get_optional(dev, "xvs");
+	if (IS_ERR(imx415->xvs_pwm))
+		return dev_err_probe(dev, PTR_ERR(imx415->xvs_pwm),
+				     "Failed to get xvs pwm\n");
+	imx415->xhs_pwm = imx415_devm_pwm_get_optional(dev, "xhs");
+	if (IS_ERR(imx415->xhs_pwm))
+		return dev_err_probe(dev, PTR_ERR(imx415->xhs_pwm),
+				     "Failed to get xhs pwm\n");
+
 	ret = of_property_read_u32(node, DATA_LANES, &imx415->lanes);
 	if (ret) {
 		imx415->lanes = 4;
@@ -3673,6 +3913,11 @@ static int imx415_probe(struct i2c_client *client,
 
 	sd = &imx415->subdev;
 	v4l2_i2c_subdev_init(sd, client, &imx415_subdev_ops);
+	ret = devm_device_add_group(dev, &imx415_attr_group);
+	if (ret) {
+		dev_err(dev, "failed to register sysfs. err: %d\n", ret);
+		goto err_destroy_mutex;
+	}
 	ret = imx415_initialize_controls(imx415);
 	if (ret)
 		goto err_destroy_mutex;
