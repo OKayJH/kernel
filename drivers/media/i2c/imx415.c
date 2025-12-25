@@ -54,7 +54,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0a)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -80,7 +80,15 @@
 #define IMX415_XHS_DUTY_NS_DEFAULT	200u
 
 /* V4L2 custom control for single-frame trigger */
-#define V4L2_CID_IMX415_USER_TRIGGER	(V4L2_CID_PRIVATE_BASE + 0x1000)
+/*
+ * Use a valid "user control" ID (with V4L2_CTRL_CLASS_USER bits). Using the
+ * legacy V4L2_CID_PRIVATE_BASE may cause v4l2_ctrl_new_custom() to fail with
+ * -ERANGE and prevent probe.
+ */
+#ifndef V4L2_CID_USER_IMX_BASE
+#define V4L2_CID_USER_IMX_BASE		(V4L2_CID_USER_BASE + 0x10b0)
+#endif
+#define V4L2_CID_IMX415_USER_TRIGGER	(V4L2_CID_USER_IMX_BASE + 0x1)
 
 #define IMX415_XVCLK_FREQ_37M		37125000
 #define IMX415_XVCLK_FREQ_27M		27000000
@@ -259,6 +267,7 @@ struct imx415 {
 	u32 lanes;
 	u32 capture_mode;
 	enum rkmodule_sync_mode	sync_mode;
+	enum rkmodule_sync_mode	dt_sync_mode;
 
 	/* External trigger via PWM (XVS/XHS) */
 	struct pwm_device	*xvs_pwm;
@@ -266,12 +275,23 @@ struct imx415 {
 	u32			xvs_duty_ns;
 	u32			xhs_duty_ns;
 	bool			xhs_pwm_enabled;
+	/* True when we want "armed" streaming and single-frame output via trigger */
+	bool			trigger_armed;
 	u32			trigger_count;
 	u64			last_trigger_ns;
 
 	/* V4L2 control */
 	struct v4l2_ctrl	*user_trigger;
 };
+
+static inline bool imx415_use_pwm_trigger(const struct imx415 *imx415)
+{
+	/*
+	 * Treat "SLAVE_MODE + xvs pwm bound" as the explicit single-frame trigger
+	 * configuration (board uses PWM14/PWM15 as XVS/XHS).
+	 */
+	return imx415->dt_sync_mode == SLAVE_MODE && imx415->xvs_pwm;
+}
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
@@ -2081,6 +2101,7 @@ static int imx415_apply_sync_mode_regs(struct imx415 *imx415)
 	u8 xmaster = 0;
 	u8 xvs_xhs_drv = 0;
 	int ret;
+	bool slave;
 
 	/*
 	 * SLAVE_MODE:
@@ -2089,7 +2110,8 @@ static int imx415_apply_sync_mode_regs(struct imx415 *imx415)
 	 *
 	 * Other modes(default/master): clear these bits.
 	 */
-	if (imx415->sync_mode == SLAVE_MODE) {
+	slave = imx415_use_pwm_trigger(imx415) || imx415->sync_mode == SLAVE_MODE;
+	if (slave) {
 		xmaster = IMX415_XMASTER_MASK;
 		xvs_xhs_drv = IMX415_XVS_XHS_DRV_MASK;
 	}
@@ -2191,8 +2213,11 @@ static int imx415_trigger_one_frame_locked(struct imx415 *imx415)
 {
 	u32 xhs_count;
 	int ret;
+	struct pwm_state xhs_state;
+	u64 frame_ns;
+	u32 frame_us;
 
-	if (imx415->sync_mode != SLAVE_MODE)
+	if (imx415->dt_sync_mode != SLAVE_MODE)
 		return -EINVAL;
 	if (!imx415->streaming)
 		return -EBUSY;
@@ -2218,13 +2243,13 @@ static int imx415_trigger_one_frame_locked(struct imx415 *imx415)
 			return ret;
 	}
 
+	pwm_init_state(imx415->xhs_pwm, &xhs_state);
+	frame_ns = (u64)xhs_count * xhs_state.period;
+	frame_us = (u32)DIV_ROUND_UP_ULL(frame_ns, 1000);
+
 	if (imx415->xhs_pwm_enabled) {
-		struct pwm_state xhs_state;
-		u64 frame_ns;
 		u64 now_ns;
 
-		pwm_init_state(imx415->xhs_pwm, &xhs_state);
-		frame_ns = (u64)xhs_count * xhs_state.period;
 		now_ns = ktime_get_ns();
 		if (imx415->last_trigger_ns && frame_ns &&
 		    now_ns - imx415->last_trigger_ns < frame_ns) {
@@ -2991,10 +3016,12 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ret = imx415_get_channel_info(imx415, ch_info);
 		break;
 	case RKMODULE_GET_SYNC_MODE:
-		*((u32 *)arg) = imx415->sync_mode;
+		*((u32 *)arg) = imx415_use_pwm_trigger(imx415) ? SLAVE_MODE : imx415->sync_mode;
 		break;
 	case RKMODULE_SET_SYNC_MODE:
-		imx415->sync_mode = *((u32 *)arg);
+		/* In PWM trigger mode, sync_mode is fixed by DT (slave). */
+		if (!imx415_use_pwm_trigger(imx415))
+			imx415->sync_mode = *((u32 *)arg);
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		if (imx415->cur_mode->hdr_mode == HDR_X2) {
@@ -3203,14 +3230,21 @@ static int __imx415_start_stream(struct imx415 *imx415)
 	if (ret)
 		return ret;
 
-	if (imx415->sync_mode == SLAVE_MODE) {
+	if (imx415_use_pwm_trigger(imx415) || imx415->sync_mode == SLAVE_MODE) {
 		ret = imx415_set_xhs_pwm(imx415, true);
 		if (ret)
 			return ret;
 	}
 
+	/*
+	 * In PWM trigger mode (DT slave + XVS/XHS PWMs), we still enter streaming
+	 * here. The sensor will only output a frame when an external XVS pulse is
+	 * provided (via sysfs/V4L2 trigger). Keeping the sensor in standby here
+	 * may cause the XVS pulse to be ignored and prevents frame output.
+	 */
+	imx415->trigger_armed = imx415_use_pwm_trigger(imx415);
 	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
-				IMX415_REG_VALUE_08BIT, 0);
+				IMX415_REG_VALUE_08BIT, IMX415_MODE_STREAMING);
 }
 
 static int __imx415_stop_stream(struct imx415 *imx415)
@@ -3224,6 +3258,7 @@ static int __imx415_stop_stream(struct imx415 *imx415)
 			       IMX415_REG_VALUE_08BIT, 1);
 	if (imx415->sync_mode == SLAVE_MODE)
 		imx415_set_xhs_pwm(imx415, false);
+	imx415->trigger_armed = false;
 	return ret;
 }
 
@@ -3817,6 +3852,7 @@ static int imx415_probe(struct i2c_client *client,
 	}
 
 	imx415->sync_mode = NO_SYNC_MODE;
+	imx415->dt_sync_mode = NO_SYNC_MODE;
 	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE,
 				      &sync_mode_name);
 	if (!ret) {
@@ -3827,6 +3863,7 @@ static int imx415_probe(struct i2c_client *client,
 		else if (strcmp(sync_mode_name, RKMODULE_SLAVE_MODE) == 0)
 			imx415->sync_mode = SLAVE_MODE;
 	}
+	imx415->dt_sync_mode = imx415->sync_mode;
 
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
 	if (ret) {
