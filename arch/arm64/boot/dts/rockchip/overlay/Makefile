@@ -14,6 +14,7 @@ dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588-lubancat-i2c7-m3-overlay.dtbo \
 	rk3588-lubancat-i2c8-m2-overlay.dtbo \
 	rk3588-lubancat-pwm-fan-overlay.dtbo \
+	rk3588-lubancat-pwm-fan-overlay-5.dtbo \
 	rk3588-lubancat-pwm0-m0-overlay.dtbo \
 	rk3588-lubancat-pwm0-m2-overlay.dtbo \
 	rk3588-lubancat-pwm1-m0-overlay.dtbo \
