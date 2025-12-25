@@ -54,7 +54,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0a)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0b)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -2216,6 +2216,7 @@ static int imx415_trigger_one_frame_locked(struct imx415 *imx415)
 	struct pwm_state xhs_state;
 	u64 frame_ns;
 	u32 frame_us;
+	u64 t0_ns;
 
 	if (imx415->dt_sync_mode != SLAVE_MODE)
 		return -EINVAL;
@@ -2261,10 +2262,31 @@ static int imx415_trigger_one_frame_locked(struct imx415 *imx415)
 		}
 	}
 
+	/*
+	 * Some external sync setups require two XVS edges to delimit a complete
+	 * frame (between consecutive XVS pulses). Emit a second XVS pulse after
+	 * one frame interval so that a full frame can be generated/captured.
+	 */
+	t0_ns = ktime_get_ns();
 	ret = imx415_pulse_xvs_pwm(imx415);
 	if (!ret) {
 		imx415->trigger_count++;
 		imx415->last_trigger_ns = ktime_get_ns();
+	}
+
+	if (!ret && imx415_use_pwm_trigger(imx415) && frame_ns) {
+		u64 now_ns = ktime_get_ns();
+
+		if (now_ns - t0_ns < frame_ns) {
+			u64 remain_ns = frame_ns - (now_ns - t0_ns);
+			u32 remain_us = (u32)DIV_ROUND_UP_ULL(remain_ns, 1000);
+
+			if (remain_us < 1000)
+				remain_us = 1000;
+			usleep_range(remain_us, remain_us + 500);
+		}
+
+		ret = imx415_pulse_xvs_pwm(imx415);
 	}
 
 	return ret;
