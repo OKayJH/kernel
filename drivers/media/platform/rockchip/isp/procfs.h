@@ -14,6 +14,15 @@ enum {
 
 struct rkisp_procfs {
 	struct proc_dir_entry *procfs;
+	/*
+	 * Compatibility procfs node for legacy user-space tools.
+	 *
+	 * Some older rkaiq tools expect "/proc/rkisp0-virX" while newer
+	 * device-tree naming on some SoCs uses "rkisp-virX" (no explicit
+	 * numeric ISP prefix). Create an alias node to keep both working.
+	 */
+	struct proc_dir_entry *procfs_compat;
+	char compat_name[32];
 	wait_queue_head_t fs_wait;
 	wait_queue_head_t fe_wait;
 	u32 mode;

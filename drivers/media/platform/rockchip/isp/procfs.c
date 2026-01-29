@@ -4,6 +4,7 @@
 #include <linux/proc_fs.h>
 #include <linux/sem.h>
 #include <linux/seq_file.h>
+#include <linux/string.h>
 
 #include "dev.h"
 #include "procfs.h"
@@ -1139,6 +1140,35 @@ int rkisp_proc_init(struct rkisp_device *dev)
 	dev->procfs.procfs = proc_create_data(dev->name, 0, NULL, &ops, dev);
 	if (!dev->procfs.procfs)
 		return -EINVAL;
+
+	/*
+	 * Legacy compatibility: create a second procfs entry "rkisp0-virX"
+	 * for old tuning/capture tools which hardcode "/proc/rkisp0-vir0".
+	 *
+	 * Some kernels/DTs expose the virtual ISP proc entry as:
+	 *   - rkisp-vir0
+	 *   - rkisp1-vir0
+	 *   - rkisp2-vir1
+	 * etc.
+	 *
+	 * Keep the original name, but also add a stable alias:
+	 *   /proc/rkisp0-virX
+	 *
+	 * Example:
+	 *   primary: /proc/rkisp1-vir0
+	 *   compat : /proc/rkisp0-vir0
+	 */
+	{
+		const char *vir = strstr(dev->name, "-vir");
+
+		if (vir && strncmp(dev->name, "rkisp0-vir", strlen("rkisp0-vir"))) {
+			snprintf(dev->procfs.compat_name, sizeof(dev->procfs.compat_name),
+				 "rkisp0%s", vir);
+			dev->procfs.procfs_compat =
+				proc_create_data(dev->procfs.compat_name, 0, NULL, &ops, dev);
+		}
+	}
+
 	init_waitqueue_head(&dev->procfs.fs_wait);
 	init_waitqueue_head(&dev->procfs.fe_wait);
 	return 0;
@@ -1148,7 +1178,10 @@ void rkisp_proc_cleanup(struct rkisp_device *dev)
 {
 	if (dev->procfs.procfs)
 		remove_proc_entry(dev->name, NULL);
+	if (dev->procfs.procfs_compat)
+		remove_proc_entry(dev->procfs.compat_name, NULL);
 	dev->procfs.procfs = NULL;
+	dev->procfs.procfs_compat = NULL;
 }
 
 #endif /* CONFIG_PROC_FS */
