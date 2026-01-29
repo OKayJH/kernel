@@ -29,3 +29,4 @@
 &hdptxphy_hdmi0 {
 	status = "okay";
 };
+

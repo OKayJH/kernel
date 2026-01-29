@@ -696,9 +696,8 @@ tca6507_led_dt_init(struct device *dev)
 		if (fwnode_property_read_string(child, "label", &led.name))
 			led.name = fwnode_get_name(child);
 
-		if (fwnode_property_read_string(child, "linux,default-trigger",
-						&led.default_trigger))
-			led.default_trigger = NULL;
+		fwnode_property_read_string(child, "linux,default-trigger",
+					    &led.default_trigger);
 
 		led.flags = 0;
 		if (fwnode_property_match_string(child, "compatible",

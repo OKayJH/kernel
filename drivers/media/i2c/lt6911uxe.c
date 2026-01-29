@@ -223,9 +223,9 @@ struct lt6911uxe_mode {
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
 	.lp_vol_ref = 3,
-	.lp_hys_sw = {3, 0, 3, 0},
-	.lp_escclk_pol_sel = {1, 1, 0, 0},
-	.skew_data_cal_clk = {0, 13, 0, 13},
+	.lp_hys_sw = {3, 0, 0, 0},
+	.lp_escclk_pol_sel = {1, 0, 0, 0},
+	.skew_data_cal_clk = {0, 3, 3, 3},
 	.clk_hs_term_sel = 2,
 	.data_hs_term_sel = {2, 2, 2, 2},
 	.reserved = {0},
@@ -790,6 +790,7 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	u32 byte_clk, mipi_clk, mipi_data_rate;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
+	lt6911uxe_i2c_enable(sd);
 
 	clk_h = i2c_rd8(sd, PCLK_H);
 	clk_m = i2c_rd8(sd, PCLK_M);
@@ -834,6 +835,7 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	vfp = (val_h << 8) | val_l;
 
 	vbp = vtotal - vact - vs - vfp;
+	lt6911uxe_i2c_disable(sd);
 
 	lt6911uxe->nosignal = false;
 	lt6911uxe->is_audio_present = true;
@@ -961,6 +963,7 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
+	lt6911uxe_i2c_enable(sd);
 	if (enable) {
 		lt6911uxe_config_dphy_timing(sd);
 		usleep_range(5000, 6000);
@@ -968,6 +971,7 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 	} else {
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, DISABLE_STREAM);
 	}
+	lt6911uxe_i2c_disable(sd);
 	msleep(20);
 
 	v4l2_dbg(2, debug, sd, "%s: %sable\n",
@@ -1391,14 +1395,15 @@ static long lt6911uxe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == PHY_VENDOR_SAMSUNG)
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
 			rk3588_dcphy_param = *dphy_param;
 		dev_dbg(&lt6911uxe->i2c_client->dev,
 			"sensor set dphy param\n");
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		*dphy_param = rk3588_dcphy_param;
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+			*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&lt6911uxe->i2c_client->dev,
 			"sensor get dphy param\n");
 		break;

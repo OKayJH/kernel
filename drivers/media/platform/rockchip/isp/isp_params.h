@@ -8,7 +8,6 @@
 #include <linux/rk-isp2-config.h>
 #include <linux/rk-isp3-config.h>
 #include <linux/rk-isp32-config.h>
-#include <linux/rk-isp33-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 
@@ -35,7 +34,7 @@ struct rkisp_isp_params_ops {
 	void (*isr_hdl)(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 	void (*param_cfg)(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id,
 			  enum rkisp_params_type type);
-	void (*param_cfgsram)(struct rkisp_isp_params_vdev *params_vdev, bool is_reset);
+	void (*param_cfgsram)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*get_meshbuf_inf)(struct rkisp_isp_params_vdev *params_vdev, void *meshbuf);
 	int (*set_meshbuf_size)(struct rkisp_isp_params_vdev *params_vdev, void *meshsize);
 	void (*free_meshbuf)(struct rkisp_isp_params_vdev *params_vdev, u64 id);
@@ -43,8 +42,6 @@ struct rkisp_isp_params_ops {
 	void (*fop_release)(struct rkisp_isp_params_vdev *params_vdev);
 	bool (*check_bigmode)(struct rkisp_isp_params_vdev *params_vdev);
 	int (*info2ddr_cfg)(struct rkisp_isp_params_vdev *params_vdev, void *arg);
-	void (*get_bay3d_buffd)(struct rkisp_isp_params_vdev *params_vdev,
-				struct rkisp_bay3dbuf_info *bay3dbuf);
 };
 
 /*
@@ -65,7 +62,6 @@ struct rkisp_isp_params_vdev {
 		struct isp21_isp_params_cfg *isp21_params;
 		struct isp3x_isp_params_cfg *isp3x_params;
 		struct isp32_isp_params_cfg *isp32_params;
-		struct isp33_isp_params_cfg *isp33_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;
@@ -89,8 +85,6 @@ struct rkisp_isp_params_vdev {
 	u32 rdbk_times;
 
 	struct sensor_exposure_cfg exposure;
-
-	atomic_t open_cnt;
 
 	bool is_subs_evt;
 	bool is_first_cfg;
@@ -146,13 +140,11 @@ void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id);
 
-void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev, bool is_check, bool is_reset);
+void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev);
 void rkisp_params_get_meshbuf_inf(struct rkisp_isp_params_vdev *params_vdev, void *meshbuf);
 int rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev, void *meshsize);
 void rkisp_params_meshbuf_free(struct rkisp_isp_params_vdev *params_vdev, u64 id);
 void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev);
 bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev);
 int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev, void *arg);
-void rkisp_params_get_bay3d_buffd(struct rkisp_isp_params_vdev *params_vdev,
-				  struct rkisp_bay3dbuf_info *bay3dbuf);
 #endif /* _RKISP_ISP_PARAM_H */

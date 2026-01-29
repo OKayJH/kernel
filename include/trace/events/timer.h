@@ -156,11 +156,7 @@ DEFINE_EVENT(timer_class, timer_cancel,
 		{ HRTIMER_MODE_ABS_SOFT,	"ABS|SOFT"	},	\
 		{ HRTIMER_MODE_REL_SOFT,	"REL|SOFT"	},	\
 		{ HRTIMER_MODE_ABS_PINNED_SOFT,	"ABS|PINNED|SOFT" },	\
-		{ HRTIMER_MODE_REL_PINNED_SOFT,	"REL|PINNED|SOFT" },	\
-		{ HRTIMER_MODE_ABS_HARD,	"ABS|HARD" },		\
-		{ HRTIMER_MODE_REL_HARD,	"REL|HARD" },		\
-		{ HRTIMER_MODE_ABS_PINNED_HARD, "ABS|PINNED|HARD" },	\
-		{ HRTIMER_MODE_REL_PINNED_HARD,	"REL|PINNED|HARD" })
+		{ HRTIMER_MODE_REL_PINNED_SOFT,	"REL|PINNED|SOFT" })
 
 /**
  * hrtimer_init - called when the hrtimer is initialized
@@ -372,8 +368,7 @@ TRACE_EVENT(itimer_expire,
 		tick_dep_name(PERF_EVENTS)		\
 		tick_dep_name(SCHED)			\
 		tick_dep_name(CLOCK_UNSTABLE)		\
-		tick_dep_name(RCU)			\
-		tick_dep_name_end(RCU_EXP)
+		tick_dep_name_end(RCU)
 
 #undef tick_dep_name
 #undef tick_dep_mask_name

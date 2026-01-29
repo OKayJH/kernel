@@ -84,7 +84,7 @@ test_platform_device_register_node(char *name, int id, int nid)
 
 	pdev = platform_device_alloc(name, id);
 	if (!pdev)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	if (nid != NUMA_NO_NODE)
 		set_dev_node(&pdev->dev, nid);
@@ -146,7 +146,7 @@ static int __init test_async_probe_init(void)
 	calltime = ktime_get();
 	for_each_online_cpu(cpu) {
 		nid = cpu_to_node(cpu);
-		pdev = &async_dev[async_id];
+		pdev = &sync_dev[sync_id];
 
 		*pdev = test_platform_device_register_node("test_async_driver",
 							   async_id,

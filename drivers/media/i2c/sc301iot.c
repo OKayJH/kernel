@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * sc301iot driver
+ * SC301IOT driver
  *
  * Copyright (C) 2022 Fuzhou Rockchip Electronics Co., Ltd.
  *
@@ -110,7 +110,7 @@
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 #define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
-#define SC301IOT_NAME			"sc301iot"
+#define SC301IOT_NAME			"SC301IOT"
 
 static const char * const SC301IOT_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -125,7 +125,7 @@ struct regval {
 	u8 val;
 };
 
-struct sc301iot_mode {
+struct SC301IOT_mode {
 	u32 bus_fmt;
 	u32 width;
 	u32 height;
@@ -138,7 +138,7 @@ struct sc301iot_mode {
 	u32 vc[PAD_MAX];
 };
 
-struct sc301iot {
+struct SC301IOT {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
 	struct gpio_desc	*reset_gpio;
@@ -162,7 +162,7 @@ struct sc301iot {
 	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
-	const struct sc301iot_mode *cur_mode;
+	const struct SC301IOT_mode *cur_mode;
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
@@ -175,12 +175,12 @@ struct sc301iot {
 	u32         sync_mode;
 };
 
-#define to_sc301iot(sd) container_of(sd, struct sc301iot, subdev)
+#define to_SC301IOT(sd) container_of(sd, struct SC301IOT, subdev)
 
 /*
  * Xclk 24Mhz
  */
-static const struct regval sc301iot_global_regs[] = {
+static const struct regval SC301IOT_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
@@ -189,7 +189,7 @@ static const struct regval sc301iot_global_regs[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 540Mbps, 2lane
  */
-static const struct regval sc301iot_linear_10_2048x1536_regs[] = {
+static const struct regval SC301IOT_linear_10_2048x1536_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
@@ -344,7 +344,7 @@ static const struct regval sc301iot_linear_10_2048x1536_regs[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 1080Mbps, HDR 2lane
  */
-static const struct regval sc301iot_hdr_10_2048x1536_regs[] = {
+static const struct regval SC301IOT_hdr_10_2048x1536_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
@@ -508,7 +508,7 @@ static const struct regval sc301iot_hdr_10_2048x1536_regs[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 540Mbps, 2lane
  */
-static const struct regval sc301iot_linear_10_1536x1536_regs[] = {
+static const struct regval SC301IOT_linear_10_1536x1536_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
@@ -664,7 +664,7 @@ static const struct regval sc301iot_linear_10_1536x1536_regs[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 1080Mbps, HDR 2lane
  */
-static const struct regval sc301iot_hdr_10_1536x1536_regs[] = {
+static const struct regval SC301IOT_hdr_10_1536x1536_regs[] = {
 	{0x0103,  0x01},
 	{0x0100, 0x00},
 	{0x36e9,  0x80},
@@ -824,7 +824,7 @@ static const struct regval sc301iot_hdr_10_1536x1536_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct sc301iot_mode supported_modes[] = {
+static const struct SC301IOT_mode supported_modes[] = {
 	{
 		.width = 2048,
 		.height = 1536,
@@ -836,7 +836,7 @@ static const struct sc301iot_mode supported_modes[] = {
 		.hts_def = 0x8ca,
 		.vts_def = 0x640,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc301iot_linear_10_2048x1536_regs,
+		.reg_list = SC301IOT_linear_10_2048x1536_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}, {
@@ -850,7 +850,7 @@ static const struct sc301iot_mode supported_modes[] = {
 		.hts_def = 0x8ca,
 		.vts_def = 0xc80,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc301iot_hdr_10_2048x1536_regs,
+		.reg_list = SC301IOT_hdr_10_2048x1536_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
@@ -867,7 +867,7 @@ static const struct sc301iot_mode supported_modes[] = {
 		.hts_def = 0x8ca,
 		.vts_def = 0x640,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc301iot_linear_10_1536x1536_regs,
+		.reg_list = SC301IOT_linear_10_1536x1536_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}, {
@@ -881,7 +881,7 @@ static const struct sc301iot_mode supported_modes[] = {
 		.hts_def = 0x8ca,
 		.vts_def = 0xc80,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc301iot_hdr_10_1536x1536_regs,
+		.reg_list = SC301IOT_hdr_10_1536x1536_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
@@ -890,15 +890,11 @@ static const struct sc301iot_mode supported_modes[] = {
 	},
 };
 
-static const u32 bus_code[] = {
-	MEDIA_BUS_FMT_SBGGR10_1X10,
-};
-
 static const s64 link_freq_menu_items[] = {
 	SC301IOT_LINK_FREQ_594
 };
 
-static const char * const sc301iot_test_pattern_menu[] = {
+static const char * const SC301IOT_test_pattern_menu[] = {
 	"Disabled",
 	"Vertical Color Bar Type 1",
 	"Vertical Color Bar Type 2",
@@ -907,7 +903,7 @@ static const char * const sc301iot_test_pattern_menu[] = {
 };
 
 /* Write registers up to 4 at a time */
-static int sc301iot_write_reg(struct i2c_client *client, u16 reg,
+static int SC301IOT_write_reg(struct i2c_client *client, u16 reg,
 			    u32 len, u32 val)
 {
 	u32 buf_i, val_i;
@@ -935,21 +931,21 @@ static int sc301iot_write_reg(struct i2c_client *client, u16 reg,
 	return 0;
 }
 
-static int sc301iot_write_array(struct i2c_client *client,
+static int SC301IOT_write_array(struct i2c_client *client,
 			       const struct regval *regs)
 {
 	u32 i;
 	int ret = 0;
 
 	for (i = 0; ret == 0 && regs[i].addr != REG_NULL; i++)
-		ret = sc301iot_write_reg(client, regs[i].addr,
+		ret = SC301IOT_write_reg(client, regs[i].addr,
 					SC301IOT_REG_VALUE_08BIT, regs[i].val);
 
 	return ret;
 }
 
 /* Read registers up to 4 at a time */
-static int sc301iot_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
+static int SC301IOT_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
 			    u32 *val)
 {
 	struct i2c_msg msgs[2];
@@ -987,7 +983,7 @@ static int sc301iot_read_reg(struct i2c_client *client, u16 reg, unsigned int le
 
 
 /* mode: 0 = lgain  1 = sgain */
-static int sc301iot_set_gain_reg(struct sc301iot *sc301iot, u32 gain, int mode)
+static int SC301IOT_set_gain_reg(struct SC301IOT *SC301IOT, u32 gain, int mode)
 {
 	u8 ANA_Coarse_gain_reg = 0x00, DIG_Fine_gain_reg = 0x80;
 	u32 ANA_Coarse_gain = 1024, DIG_gain_reg = 0x00;
@@ -1030,28 +1026,28 @@ static int sc301iot_set_gain_reg(struct sc301iot *sc301iot, u32 gain, int mode)
 	DIG_Fine_gain_reg = gain/8;
 
 	if (mode == SC301IOT_LGAIN) {
-		ret = sc301iot_write_reg(sc301iot->client,
+		ret = SC301IOT_write_reg(SC301IOT->client,
 					SC301IOT_REG_DIG_GAIN,
 					SC301IOT_REG_VALUE_08BIT,
 					DIG_gain_reg & 0xF);
-		ret |= sc301iot_write_reg(sc301iot->client,
+		ret |= SC301IOT_write_reg(SC301IOT->client,
 					 SC301IOT_REG_DIG_FINE_GAIN,
 					 SC301IOT_REG_VALUE_08BIT,
 					 DIG_Fine_gain_reg);
-		ret |= sc301iot_write_reg(sc301iot->client,
+		ret |= SC301IOT_write_reg(SC301IOT->client,
 					 SC301IOT_REG_ANA_GAIN,
 					 SC301IOT_REG_VALUE_08BIT,
 					 ANA_Coarse_gain_reg);
 	} else {
-		ret = sc301iot_write_reg(sc301iot->client,
+		ret = SC301IOT_write_reg(SC301IOT->client,
 					SC301IOT_REG_SDIG_GAIN,
 					SC301IOT_REG_VALUE_08BIT,
 					DIG_gain_reg & 0xF);
-		ret |= sc301iot_write_reg(sc301iot->client,
+		ret |= SC301IOT_write_reg(SC301IOT->client,
 					 SC301IOT_REG_SDIG_FINE_GAIN,
 					 SC301IOT_REG_VALUE_08BIT,
 					 DIG_Fine_gain_reg);
-		ret |= sc301iot_write_reg(sc301iot->client,
+		ret |= SC301IOT_write_reg(SC301IOT->client,
 					 SC301IOT_REG_SANA_GAIN,
 					 SC301IOT_REG_VALUE_08BIT,
 					 ANA_Coarse_gain_reg);
@@ -1059,17 +1055,17 @@ static int sc301iot_set_gain_reg(struct sc301iot *sc301iot, u32 gain, int mode)
 	return ret;
 }
 
-static int sc301iot_set_hdrae(struct sc301iot *sc301iot,
+static int SC301IOT_set_hdrae(struct SC301IOT *SC301IOT,
 			    struct preisp_hdrae_exp_s *ae)
 {
 	int ret = 0;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
 
-	if (!sc301iot->has_init_exp && !sc301iot->streaming) {
-		sc301iot->init_hdrae_exp = *ae;
-		sc301iot->has_init_exp = true;
-		dev_dbg(&sc301iot->client->dev, "sc301iot don't stream, record exp for hdr!\n");
+	if (!SC301IOT->has_init_exp && !SC301IOT->streaming) {
+		SC301IOT->init_hdrae_exp = *ae;
+		SC301IOT->has_init_exp = true;
+		dev_dbg(&SC301IOT->client->dev, "SC301IOT don't stream, record exp for hdr!\n");
 		return ret;
 	}
 	l_exp_time = ae->long_exp_reg;
@@ -1079,12 +1075,12 @@ static int sc301iot_set_hdrae(struct sc301iot *sc301iot,
 	m_a_gain = ae->middle_gain_reg;
 	s_a_gain = ae->short_gain_reg;
 
-	dev_dbg(&sc301iot->client->dev,
+	dev_dbg(&SC301IOT->client->dev,
 		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
 		l_exp_time, m_exp_time, s_exp_time,
 		l_a_gain, m_a_gain, s_a_gain);
 
-	if (sc301iot->cur_mode->hdr_mode == HDR_X2) {
+	if (SC301IOT->cur_mode->hdr_mode == HDR_X2) {
 		//2 stagger
 		l_a_gain = m_a_gain;
 		l_exp_time = m_exp_time;
@@ -1101,42 +1097,42 @@ static int sc301iot_set_hdrae(struct sc301iot *sc301iot,
 	if (s_exp_time > 182)                //(191 - 9)
 		s_exp_time = 182;
 
-	ret = sc301iot_write_reg(sc301iot->client,
+	ret = SC301IOT_write_reg(SC301IOT->client,
 				SC301IOT_REG_EXPOSURE_H,
 				SC301IOT_REG_VALUE_08BIT,
 				SC301IOT_FETCH_EXP_H(l_exp_time));
-	ret |= sc301iot_write_reg(sc301iot->client,
+	ret |= SC301IOT_write_reg(SC301IOT->client,
 				 SC301IOT_REG_EXPOSURE_M,
 				 SC301IOT_REG_VALUE_08BIT,
 				 SC301IOT_FETCH_EXP_M(l_exp_time));
-	ret |= sc301iot_write_reg(sc301iot->client,
+	ret |= SC301IOT_write_reg(SC301IOT->client,
 				 SC301IOT_REG_EXPOSURE_L,
 				 SC301IOT_REG_VALUE_08BIT,
 				 SC301IOT_FETCH_EXP_L(l_exp_time));
-	ret |= sc301iot_write_reg(sc301iot->client,
+	ret |= SC301IOT_write_reg(SC301IOT->client,
 				 SC301IOT_REG_SEXPOSURE_M,
 				 SC301IOT_REG_VALUE_08BIT,
 				 SC301IOT_FETCH_EXP_M(s_exp_time));
-	ret |= sc301iot_write_reg(sc301iot->client,
+	ret |= SC301IOT_write_reg(SC301IOT->client,
 				 SC301IOT_REG_SEXPOSURE_L,
 				 SC301IOT_REG_VALUE_08BIT,
 				 SC301IOT_FETCH_EXP_L(s_exp_time));
 
 
-	ret |= sc301iot_set_gain_reg(sc301iot, l_a_gain, SC301IOT_LGAIN);
-	ret |= sc301iot_set_gain_reg(sc301iot, s_a_gain, SC301IOT_SGAIN);
+	ret |= SC301IOT_set_gain_reg(SC301IOT, l_a_gain, SC301IOT_LGAIN);
+	ret |= SC301IOT_set_gain_reg(SC301IOT, s_a_gain, SC301IOT_SGAIN);
 	return ret;
 }
 
-static int sc301iot_get_reso_dist(const struct sc301iot_mode *mode,
+static int SC301IOT_get_reso_dist(const struct SC301IOT_mode *mode,
 				 struct v4l2_mbus_framefmt *framefmt)
 {
 	return abs(mode->width - framefmt->width) +
 	       abs(mode->height - framefmt->height);
 }
 
-static const struct sc301iot_mode *
-sc301iot_find_best_fit(struct v4l2_subdev_format *fmt)
+static const struct SC301IOT_mode *
+SC301IOT_find_best_fit(struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
@@ -1145,31 +1141,27 @@ sc301iot_find_best_fit(struct v4l2_subdev_format *fmt)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		dist = sc301iot_get_reso_dist(&supported_modes[i], framefmt);
+		dist = SC301IOT_get_reso_dist(&supported_modes[i], framefmt);
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
-		} else if (dist == cur_best_fit_dist &&
-			   framefmt->code == supported_modes[i].bus_fmt) {
-			cur_best_fit = i;
-			break;
 		}
 	}
 
 	return &supported_modes[cur_best_fit];
 }
 
-static int sc301iot_set_fmt(struct v4l2_subdev *sd,
+static int SC301IOT_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
-	const struct sc301iot_mode *mode;
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+	const struct SC301IOT_mode *mode;
 	s64 h_blank, vblank_def;
 
-	mutex_lock(&sc301iot->mutex);
+	mutex_lock(&SC301IOT->mutex);
 
-	mode = sc301iot_find_best_fit(fmt);
+	mode = SC301IOT_find_best_fit(fmt);
 	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
@@ -1178,40 +1170,40 @@ static int sc301iot_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
 #else
-		mutex_unlock(&sc301iot->mutex);
+		mutex_unlock(&SC301IOT->mutex);
 		return -ENOTTY;
 #endif
 	} else {
-		sc301iot->cur_mode = mode;
+		SC301IOT->cur_mode = mode;
 		h_blank = mode->hts_def - mode->width;
-		__v4l2_ctrl_modify_range(sc301iot->hblank, h_blank,
+		__v4l2_ctrl_modify_range(SC301IOT->hblank, h_blank,
 					 h_blank, 1, h_blank);
 		vblank_def = mode->vts_def - mode->height;
-		__v4l2_ctrl_modify_range(sc301iot->vblank, vblank_def,
+		__v4l2_ctrl_modify_range(SC301IOT->vblank, vblank_def,
 					 SC301IOT_VTS_MAX - mode->height,
 					 1, vblank_def);
-		sc301iot->cur_fps = mode->max_fps;
-		sc301iot->cur_vts = mode->vts_def;
+		SC301IOT->cur_fps = mode->max_fps;
+		SC301IOT->cur_vts = mode->vts_def;
 	}
 
-	mutex_unlock(&sc301iot->mutex);
+	mutex_unlock(&SC301IOT->mutex);
 
 	return 0;
 }
 
-static int sc301iot_get_fmt(struct v4l2_subdev *sd,
+static int SC301IOT_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
-	const struct sc301iot_mode *mode = sc301iot->cur_mode;
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
 
-	mutex_lock(&sc301iot->mutex);
+	mutex_lock(&SC301IOT->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 #else
-		mutex_unlock(&sc301iot->mutex);
+		mutex_unlock(&SC301IOT->mutex);
 		return -ENOTTY;
 #endif
 	} else {
@@ -1225,22 +1217,24 @@ static int sc301iot_get_fmt(struct v4l2_subdev *sd,
 		else
 			fmt->reserved[0] = mode->vc[PAD0];
 	}
-	mutex_unlock(&sc301iot->mutex);
+	mutex_unlock(&SC301IOT->mutex);
 	return 0;
 }
 
-static int sc301iot_enum_mbus_code(struct v4l2_subdev *sd,
+static int SC301IOT_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= ARRAY_SIZE(bus_code))
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+
+	if (code->index != 0)
 		return -EINVAL;
-	code->code = bus_code[code->index];
+	code->code = SC301IOT->cur_mode->bus_fmt;
 
 	return 0;
 }
 
-static int sc301iot_enum_frame_sizes(struct v4l2_subdev *sd,
+static int SC301IOT_enum_frame_sizes(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
@@ -1258,42 +1252,42 @@ static int sc301iot_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int sc301iot_enable_test_pattern(struct sc301iot *sc301iot, u32 pattern)
+static int SC301IOT_enable_test_pattern(struct SC301IOT *SC301IOT, u32 pattern)
 {
 	u32 val = 0;
 	int ret = 0;
 
-	ret = sc301iot_read_reg(sc301iot->client, SC301IOT_REG_TEST_PATTERN,
+	ret = SC301IOT_read_reg(SC301IOT->client, SC301IOT_REG_TEST_PATTERN,
 			       SC301IOT_REG_VALUE_08BIT, &val);
 	if (pattern)
 		val |= SC301IOT_TEST_PATTERN_BIT_MASK;
 	else
 		val &= ~SC301IOT_TEST_PATTERN_BIT_MASK;
 
-	ret |= sc301iot_write_reg(sc301iot->client, SC301IOT_REG_TEST_PATTERN,
+	ret |= SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_TEST_PATTERN,
 				 SC301IOT_REG_VALUE_08BIT, val);
 	return ret;
 }
 
-static int sc301iot_g_frame_interval(struct v4l2_subdev *sd,
+static int SC301IOT_g_frame_interval(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_frame_interval *fi)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
-	const struct sc301iot_mode *mode = sc301iot->cur_mode;
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
 
-	if (sc301iot->streaming)
-		fi->interval = sc301iot->cur_fps;
+	if (SC301IOT->streaming)
+		fi->interval = SC301IOT->cur_fps;
 	else
 		fi->interval = mode->max_fps;
 
 	return 0;
 }
 
-static int sc301iot_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
+static int SC301IOT_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *config)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
-	const struct sc301iot_mode *mode = sc301iot->cur_mode;
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
 	u32 val = 1 << (SC301IOT_LANES - 1) |
 		V4L2_MBUS_CSI2_CHANNEL_0 |
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -1309,119 +1303,102 @@ static int sc301iot_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 	return 0;
 }
 
-static void sc301iot_get_module_inf(struct sc301iot *sc301iot,
+static void SC301IOT_get_module_inf(struct SC301IOT *SC301IOT,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
 	strscpy(inf->base.sensor, SC301IOT_NAME, sizeof(inf->base.sensor));
-	strscpy(inf->base.module, sc301iot->module_name,
+	strscpy(inf->base.module, SC301IOT->module_name,
 		sizeof(inf->base.module));
-	strscpy(inf->base.lens, sc301iot->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, SC301IOT->len_name, sizeof(inf->base.lens));
 }
 
-static int sc301iot_get_channel_info(struct sc301iot *sc301iot,
+static int SC301IOT_get_channel_info(struct SC301IOT *SC301IOT,
 					    struct rkmodule_channel_info *ch_info)
 {
 	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
 		return -EINVAL;
-	ch_info->vc = sc301iot->cur_mode->vc[ch_info->index];
-	ch_info->width = sc301iot->cur_mode->width;
-	ch_info->height = sc301iot->cur_mode->height;
-	ch_info->bus_fmt = sc301iot->cur_mode->bus_fmt;
+	ch_info->vc = SC301IOT->cur_mode->vc[ch_info->index];
+	ch_info->width = SC301IOT->cur_mode->width;
+	ch_info->height = SC301IOT->cur_mode->height;
+	ch_info->bus_fmt = SC301IOT->cur_mode->bus_fmt;
 	return 0;
 }
 
-static long sc301iot_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long SC301IOT_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 	struct rkmodule_hdr_cfg *hdr;
 	struct rkmodule_channel_info *ch_info;
 	u32 i, h, w;
 	long ret = 0;
 	u32 stream = 0;
 	u32 sync_mode = 4;
-	int cur_best_fit = -1;
-	int cur_best_fit_dist = -1;
-	int cur_dist, cur_fps, dst_fps;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
-		sc301iot_get_module_inf(sc301iot, (struct rkmodule_inf *)arg);
+		SC301IOT_get_module_inf(SC301IOT, (struct rkmodule_inf *)arg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
 		hdr->esp.mode = HDR_NORMAL_VC;
-		hdr->hdr_mode = sc301iot->cur_mode->hdr_mode;
+		hdr->hdr_mode = SC301IOT->cur_mode->hdr_mode;
 		break;
 	case RKMODULE_SET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
-		if (hdr->hdr_mode == sc301iot->cur_mode->hdr_mode)
-			return 0;
-		w = sc301iot->cur_mode->width;
-		h = sc301iot->cur_mode->height;
-		dst_fps = DIV_ROUND_CLOSEST(sc301iot->cur_mode->max_fps.denominator,
-			sc301iot->cur_mode->max_fps.numerator);
+		w = SC301IOT->cur_mode->width;
+		h = SC301IOT->cur_mode->height;
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
-			    supported_modes[i].bus_fmt == sc301iot->cur_mode->bus_fmt) {
-				cur_fps = DIV_ROUND_CLOSEST(supported_modes[i].max_fps.denominator,
-					supported_modes[i].max_fps.numerator);
-				cur_dist = abs(cur_fps - dst_fps);
-				if (cur_best_fit_dist == -1 || cur_dist < cur_best_fit_dist) {
-					cur_best_fit_dist = cur_dist;
-					cur_best_fit = i;
-				} else if (cur_dist == cur_best_fit_dist) {
-					cur_best_fit = i;
-					break;
-				}
+			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+				SC301IOT->cur_mode = &supported_modes[i];
+				break;
 			}
 		}
-		if (cur_best_fit == -1) {
-			dev_err(&sc301iot->client->dev,
+		if (i == ARRAY_SIZE(supported_modes)) {
+			dev_err(&SC301IOT->client->dev,
 				"not find hdr mode:%d %dx%d config\n",
 				hdr->hdr_mode, w, h);
 			ret = -EINVAL;
 		} else {
-			sc301iot->cur_mode = &supported_modes[cur_best_fit];
-			w = sc301iot->cur_mode->hts_def - sc301iot->cur_mode->width;
-			h = sc301iot->cur_mode->vts_def - sc301iot->cur_mode->height;
-			__v4l2_ctrl_modify_range(sc301iot->hblank, w, w, 1, w);
-			__v4l2_ctrl_modify_range(sc301iot->vblank,
+			w = SC301IOT->cur_mode->hts_def - SC301IOT->cur_mode->width;
+			h = SC301IOT->cur_mode->vts_def - SC301IOT->cur_mode->height;
+			__v4l2_ctrl_modify_range(SC301IOT->hblank, w, w, 1, w);
+			__v4l2_ctrl_modify_range(SC301IOT->vblank,
 				h,
-				SC301IOT_VTS_MAX - sc301iot->cur_mode->height, 1, h);
-			sc301iot->cur_fps = sc301iot->cur_mode->max_fps;
-			sc301iot->cur_vts = sc301iot->cur_mode->vts_def;
+				SC301IOT_VTS_MAX - SC301IOT->cur_mode->height, 1, h);
+			SC301IOT->cur_fps = SC301IOT->cur_mode->max_fps;
+			SC301IOT->cur_vts = SC301IOT->cur_mode->vts_def;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
-		sc301iot_set_hdrae(sc301iot, arg);
+		SC301IOT_set_hdrae(SC301IOT, arg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 
 		stream = *((u32 *)arg);
 
 		if (stream)
-			ret = sc301iot_write_reg(sc301iot->client, SC301IOT_REG_CTRL_MODE,
+			ret = SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_STREAMING);
 		else
-			ret = sc301iot_write_reg(sc301iot->client, SC301IOT_REG_CTRL_MODE,
+			ret = SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_SW_STANDBY);
 		break;
 	case RKMODULE_GET_SYNC_MODE:
-		*((u32 *)arg) = sc301iot->sync_mode;
+		*((u32 *)arg) = SC301IOT->sync_mode;
 		break;
 	case RKMODULE_SET_SYNC_MODE:
 		sync_mode = *((u32 *)arg);
 		if (sync_mode > 3)
 			break;
-		sc301iot->sync_mode = sync_mode;
-		dev_info(&sc301iot->client->dev, "sync_mode = [%u]\n", sc301iot->sync_mode);
+		SC301IOT->sync_mode = sync_mode;
+		dev_info(&SC301IOT->client->dev, "sync_mode = [%u]\n", SC301IOT->sync_mode);
 		break;
 	case RKMODULE_GET_CHANNEL_INFO:
 		ch_info = (struct rkmodule_channel_info *)arg;
-		ret = sc301iot_get_channel_info(sc301iot, ch_info);
+		ret = SC301IOT_get_channel_info(SC301IOT, ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1432,7 +1409,7 @@ static long sc301iot_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
+static long SC301IOT_compat_ioctl32(struct v4l2_subdev *sd,
 				   unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
@@ -1452,7 +1429,7 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = sc301iot_ioctl(sd, cmd, inf);
+		ret = SC301IOT_ioctl(sd, cmd, inf);
 		if (!ret) {
 			if (copy_to_user(up, inf, sizeof(*inf))) {
 				kfree(inf);
@@ -1471,7 +1448,7 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 			kfree(cfg);
 			return -EFAULT;
 		}
-		ret = sc301iot_ioctl(sd, cmd, cfg);
+		ret = SC301IOT_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -1481,7 +1458,7 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = sc301iot_ioctl(sd, cmd, hdr);
+		ret = SC301IOT_ioctl(sd, cmd, hdr);
 		if (!ret) {
 			if (copy_to_user(up, hdr, sizeof(*hdr))) {
 				kfree(hdr);
@@ -1500,7 +1477,7 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 			kfree(hdr);
 			return -EFAULT;
 		}
-		ret = sc301iot_ioctl(sd, cmd, hdr);
+		ret = SC301IOT_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1513,13 +1490,13 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 			kfree(hdrae);
 			return -EFAULT;
 		}
-		ret = sc301iot_ioctl(sd, cmd, hdrae);
+		ret = SC301IOT_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		if (copy_from_user(&stream, up, sizeof(u32)))
 			return -EFAULT;
-		ret = sc301iot_ioctl(sd, cmd, &stream);
+		ret = SC301IOT_ioctl(sd, cmd, &stream);
 		break;
 	case RKMODULE_GET_CHANNEL_INFO:
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
@@ -1528,7 +1505,7 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = sc301iot_ioctl(sd, cmd, ch_info);
+		ret = SC301IOT_ioctl(sd, cmd, ch_info);
 		if (!ret) {
 			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
 			if (ret)
@@ -1545,10 +1522,10 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
-static int sc301iot_s_frame_interval(struct v4l2_subdev *sd,
+static int SC301IOT_s_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 	struct device *dev = sd->dev;
 	int ret = -1;
 	s64 vblank_def;
@@ -1557,102 +1534,100 @@ static int sc301iot_s_frame_interval(struct v4l2_subdev *sd,
 	fps_set = DIV_ROUND_CLOSEST(fi->interval.denominator, fi->interval.numerator);
 	dev_info(dev, "%s set fps = %u\n", __func__, fps_set);
 
-	mutex_lock(&sc301iot->mutex);
+	mutex_lock(&SC301IOT->mutex);
 
-	current_fps = DIV_ROUND_CLOSEST(sc301iot->cur_mode->max_fps.denominator,
-			sc301iot->cur_mode->max_fps.numerator);
-	vblank_def = sc301iot->cur_mode->vts_def * current_fps / fps_set -
-						sc301iot->cur_mode->height;
-	if (sc301iot->sync_mode == SLAVE_MODE)
+	current_fps = DIV_ROUND_CLOSEST(SC301IOT->cur_mode->max_fps.denominator,
+			SC301IOT->cur_mode->max_fps.numerator);
+	vblank_def = SC301IOT->cur_mode->vts_def * current_fps / fps_set -
+						SC301IOT->cur_mode->height;
+	if (SC301IOT->sync_mode == SLAVE_MODE)
 		vblank_def -= 3;  // adjust vts
-	ret = __v4l2_ctrl_s_ctrl(sc301iot->vblank, vblank_def);
-	mutex_unlock(&sc301iot->mutex);
+	ret = __v4l2_ctrl_s_ctrl(SC301IOT->vblank, vblank_def);
+	mutex_unlock(&SC301IOT->mutex);
 	if (ret < 0)
 		dev_err(dev, "%s __v4l2_ctrl_s_ctrl error - %d\n", __func__, ret);
 	return ret;
 }
 
-static int __sc301iot_start_stream(struct sc301iot *sc301iot)
+static int __SC301IOT_start_stream(struct SC301IOT *SC301IOT)
 {
 	int ret;
 
-	if (!sc301iot->is_thunderboot) {
-		ret = sc301iot_write_array(sc301iot->client, sc301iot->cur_mode->reg_list);
+	if (!SC301IOT->is_thunderboot) {
+		ret = SC301IOT_write_array(SC301IOT->client, SC301IOT->cur_mode->reg_list);
 		if (ret)
 			return ret;
 
 		/* In case these controls are set before streaming */
-		ret = __v4l2_ctrl_handler_setup(&sc301iot->ctrl_handler);
+		ret = __v4l2_ctrl_handler_setup(&SC301IOT->ctrl_handler);
 		if (ret)
 			return ret;
-		if (sc301iot->has_init_exp && sc301iot->cur_mode->hdr_mode != NO_HDR) {
-			ret = sc301iot_ioctl(&sc301iot->subdev, PREISP_CMD_SET_HDRAE_EXP,
-					&sc301iot->init_hdrae_exp);
+		if (SC301IOT->has_init_exp && SC301IOT->cur_mode->hdr_mode != NO_HDR) {
+			ret = SC301IOT_ioctl(&SC301IOT->subdev, PREISP_CMD_SET_HDRAE_EXP,
+					&SC301IOT->init_hdrae_exp);
 			if (ret) {
-				dev_err(&sc301iot->client->dev,
+				dev_err(&SC301IOT->client->dev,
 					"init exp fail in hdr mode\n");
 				return ret;
 			}
 		}
 
-		if (sc301iot->sync_mode == SLAVE_MODE) {
-			sc301iot_write_reg(sc301iot->client, 0x3222,
+		if (SC301IOT->sync_mode == SLAVE_MODE) {
+			SC301IOT_write_reg(SC301IOT->client, 0x3222,
 					SC301IOT_REG_VALUE_08BIT, 0x01);
-			sc301iot_write_reg(sc301iot->client, 0x3223,
+			SC301IOT_write_reg(SC301IOT->client, 0x3223,
 					SC301IOT_REG_VALUE_08BIT, 0xc8);
-			sc301iot_write_reg(sc301iot->client, 0x3225,
+			SC301IOT_write_reg(SC301IOT->client, 0x3225,
 					SC301IOT_REG_VALUE_08BIT, 0x10);
-			sc301iot_write_reg(sc301iot->client, 0x322e,
-					SC301IOT_REG_VALUE_08BIT, (sc301iot->cur_vts - 4) >> 8);
-			sc301iot_write_reg(sc301iot->client, 0x322f,
-					SC301IOT_REG_VALUE_08BIT, (sc301iot->cur_vts - 4) & 0xff);
-		} else if (sc301iot->sync_mode == NO_SYNC_MODE) {
-			sc301iot_write_reg(sc301iot->client, 0x3222,
+			SC301IOT_write_reg(SC301IOT->client, 0x322e,
+					SC301IOT_REG_VALUE_08BIT, (SC301IOT->cur_vts - 4) >> 8);
+			SC301IOT_write_reg(SC301IOT->client, 0x322f,
+					SC301IOT_REG_VALUE_08BIT, (SC301IOT->cur_vts - 4) & 0xff);
+		} else if (SC301IOT->sync_mode == NO_SYNC_MODE) {
+			SC301IOT_write_reg(SC301IOT->client, 0x3222,
 						SC301IOT_REG_VALUE_08BIT, 0x00);
-			sc301iot_write_reg(sc301iot->client, 0x3223,
+			SC301IOT_write_reg(SC301IOT->client, 0x3223,
 						SC301IOT_REG_VALUE_08BIT, 0xd0);
-			sc301iot_write_reg(sc301iot->client, 0x3225,
+			SC301IOT_write_reg(SC301IOT->client, 0x3225,
 						SC301IOT_REG_VALUE_08BIT, 0x00);
-			sc301iot_write_reg(sc301iot->client, 0x322e,
+			SC301IOT_write_reg(SC301IOT->client, 0x322e,
 						SC301IOT_REG_VALUE_08BIT, 0x00);
-			sc301iot_write_reg(sc301iot->client, 0x322f,
+			SC301IOT_write_reg(SC301IOT->client, 0x322f,
 						SC301IOT_REG_VALUE_08BIT, 0x02);
 		}
 	}
 
-	dev_dbg(&sc301iot->client->dev, "start stream\n");
-	return sc301iot_write_reg(sc301iot->client, SC301IOT_REG_CTRL_MODE,
+	dev_dbg(&SC301IOT->client->dev, "start stream\n");
+	return SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_STREAMING);
 }
 
-static int __sc301iot_stop_stream(struct sc301iot *sc301iot)
+static int __SC301IOT_stop_stream(struct SC301IOT *SC301IOT)
 {
-	sc301iot->has_init_exp = false;
-	dev_dbg(&sc301iot->client->dev, "stop stream\n");
-	if (sc301iot->is_thunderboot) {
-		sc301iot->is_first_streamoff = true;
-		pm_runtime_put(&sc301iot->client->dev);
-	}
-	return sc301iot_write_reg(sc301iot->client, SC301IOT_REG_CTRL_MODE,
+	SC301IOT->has_init_exp = false;
+	dev_dbg(&SC301IOT->client->dev, "stop stream\n");
+	if (SC301IOT->is_thunderboot)
+		SC301IOT->is_first_streamoff = true;
+	return SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_SW_STANDBY);
 }
 
-static int __sc301iot_power_on(struct sc301iot *sc301iot);
-static int sc301iot_s_stream(struct v4l2_subdev *sd, int on)
+static int __SC301IOT_power_on(struct SC301IOT *SC301IOT);
+static int SC301IOT_s_stream(struct v4l2_subdev *sd, int on)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
-	struct i2c_client *client = sc301iot->client;
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+	struct i2c_client *client = SC301IOT->client;
 	int ret = 0;
 
-	mutex_lock(&sc301iot->mutex);
+	mutex_lock(&SC301IOT->mutex);
 	on = !!on;
-	if (on == sc301iot->streaming)
+	if (on == SC301IOT->streaming)
 		goto unlock_and_return;
 
 	if (on) {
-		if (sc301iot->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
-			sc301iot->is_thunderboot = false;
-			__sc301iot_power_on(sc301iot);
+		if (SC301IOT->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			SC301IOT->is_thunderboot = false;
+			__SC301IOT_power_on(SC301IOT);
 		}
 
 		ret = pm_runtime_get_sync(&client->dev);
@@ -1661,35 +1636,35 @@ static int sc301iot_s_stream(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = __sc301iot_start_stream(sc301iot);
+		ret = __SC301IOT_start_stream(SC301IOT);
 		if (ret) {
 			v4l2_err(sd, "start stream failed while write regs\n");
 			pm_runtime_put(&client->dev);
 			goto unlock_and_return;
 		}
 	} else {
-		__sc301iot_stop_stream(sc301iot);
+		__SC301IOT_stop_stream(SC301IOT);
 		pm_runtime_put(&client->dev);
 	}
 
-	sc301iot->streaming = on;
+	SC301IOT->streaming = on;
 
 unlock_and_return:
-	mutex_unlock(&sc301iot->mutex);
+	mutex_unlock(&SC301IOT->mutex);
 
 	return ret;
 }
 
-static int sc301iot_s_power(struct v4l2_subdev *sd, int on)
+static int SC301IOT_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
-	struct i2c_client *client = sc301iot->client;
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
+	struct i2c_client *client = SC301IOT->client;
 	int ret = 0;
 
-	mutex_lock(&sc301iot->mutex);
+	mutex_lock(&SC301IOT->mutex);
 
 	/* If the power state is not modified - no work to do. */
-	if (sc301iot->power_on == !!on)
+	if (SC301IOT->power_on == !!on)
 		goto unlock_and_return;
 
 	if (on) {
@@ -1699,8 +1674,8 @@ static int sc301iot_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		if (!sc301iot->is_thunderboot) {
-			ret = sc301iot_write_array(sc301iot->client, sc301iot_global_regs);
+		if (!SC301IOT->is_thunderboot) {
+			ret = SC301IOT_write_array(SC301IOT->client, SC301IOT_global_regs);
 			if (ret) {
 				v4l2_err(sd, "could not set init registers\n");
 				pm_runtime_put_noidle(&client->dev);
@@ -1708,152 +1683,152 @@ static int sc301iot_s_power(struct v4l2_subdev *sd, int on)
 			}
 		}
 
-		sc301iot->power_on = true;
+		SC301IOT->power_on = true;
 	} else {
 		pm_runtime_put(&client->dev);
-		sc301iot->power_on = false;
+		SC301IOT->power_on = false;
 	}
 
 unlock_and_return:
-	mutex_unlock(&sc301iot->mutex);
+	mutex_unlock(&SC301IOT->mutex);
 
 	return ret;
 }
 
 /* Calculate the delay in us by clock rate and clock cycles */
-static inline u32 sc301iot_cal_delay(u32 cycles)
+static inline u32 SC301IOT_cal_delay(u32 cycles)
 {
 	return DIV_ROUND_UP(cycles, SC301IOT_XVCLK_FREQ / 1000 / 1000);
 }
 
-static int __sc301iot_power_on(struct sc301iot *sc301iot)
+static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 {
 	int ret;
 	u32 delay_us;
-	struct device *dev = &sc301iot->client->dev;
+	struct device *dev = &SC301IOT->client->dev;
 
-	if (!IS_ERR_OR_NULL(sc301iot->pins_default)) {
-		ret = pinctrl_select_state(sc301iot->pinctrl,
-					   sc301iot->pins_default);
+	if (!IS_ERR_OR_NULL(SC301IOT->pins_default)) {
+		ret = pinctrl_select_state(SC301IOT->pinctrl,
+					   SC301IOT->pins_default);
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-	ret = clk_set_rate(sc301iot->xvclk, SC301IOT_XVCLK_FREQ);
+	ret = clk_set_rate(SC301IOT->xvclk, SC301IOT_XVCLK_FREQ);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
-	if (clk_get_rate(sc301iot->xvclk) != SC301IOT_XVCLK_FREQ)
+	if (clk_get_rate(SC301IOT->xvclk) != SC301IOT_XVCLK_FREQ)
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
-	ret = clk_prepare_enable(sc301iot->xvclk);
+	ret = clk_prepare_enable(SC301IOT->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		goto disable_clk;
 	}
-	if (sc301iot->is_thunderboot)
+	if (SC301IOT->is_thunderboot)
 		return 0;
-	if (!IS_ERR(sc301iot->reset_gpio))
-		gpiod_set_value_cansleep(sc301iot->reset_gpio, 0);
+	if (!IS_ERR(SC301IOT->reset_gpio))
+		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 0);
 
-	ret = regulator_bulk_enable(SC301IOT_NUM_SUPPLIES, sc301iot->supplies);
+	ret = regulator_bulk_enable(SC301IOT_NUM_SUPPLIES, SC301IOT->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
-	if (!IS_ERR(sc301iot->reset_gpio))
-		gpiod_set_value_cansleep(sc301iot->reset_gpio, 1);
+	if (!IS_ERR(SC301IOT->reset_gpio))
+		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 1);
 
 	usleep_range(500, 1000);
-	if (!IS_ERR(sc301iot->pwdn_gpio))
-		gpiod_set_value_cansleep(sc301iot->pwdn_gpio, 1);
+	if (!IS_ERR(SC301IOT->pwdn_gpio))
+		gpiod_set_value_cansleep(SC301IOT->pwdn_gpio, 1);
 	usleep_range(4500, 5000);
 
-	if (!IS_ERR(sc301iot->reset_gpio))
+	if (!IS_ERR(SC301IOT->reset_gpio))
 		usleep_range(6000, 8000);
 	else
 		usleep_range(12000, 16000);
 
 	/* 8192 cycles prior to first SCCB transaction */
-	delay_us = sc301iot_cal_delay(8192);
+	delay_us = SC301IOT_cal_delay(8192);
 	usleep_range(delay_us, delay_us * 2);
 
 	return 0;
 
 disable_clk:
-	clk_disable_unprepare(sc301iot->xvclk);
+	clk_disable_unprepare(SC301IOT->xvclk);
 
 	return ret;
 }
 
-static void __sc301iot_power_off(struct sc301iot *sc301iot)
+static void __SC301IOT_power_off(struct SC301IOT *SC301IOT)
 {
 	int ret;
-	struct device *dev = &sc301iot->client->dev;
+	struct device *dev = &SC301IOT->client->dev;
 
-	clk_disable_unprepare(sc301iot->xvclk);
-	if (sc301iot->is_thunderboot) {
-		if (sc301iot->is_first_streamoff) {
-			sc301iot->is_thunderboot = false;
-			sc301iot->is_first_streamoff = false;
+	clk_disable_unprepare(SC301IOT->xvclk);
+	if (SC301IOT->is_thunderboot) {
+		if (SC301IOT->is_first_streamoff) {
+			SC301IOT->is_thunderboot = false;
+			SC301IOT->is_first_streamoff = false;
 		} else {
 			return;
 		}
 	}
 
-	if (!IS_ERR(sc301iot->pwdn_gpio))
-		gpiod_set_value_cansleep(sc301iot->pwdn_gpio, 0);
-	if (!IS_ERR(sc301iot->reset_gpio))
-		gpiod_set_value_cansleep(sc301iot->reset_gpio, 0);
-	if (!IS_ERR_OR_NULL(sc301iot->pins_sleep)) {
-		ret = pinctrl_select_state(sc301iot->pinctrl,
-					   sc301iot->pins_sleep);
+	if (!IS_ERR(SC301IOT->pwdn_gpio))
+		gpiod_set_value_cansleep(SC301IOT->pwdn_gpio, 0);
+	if (!IS_ERR(SC301IOT->reset_gpio))
+		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 0);
+	if (!IS_ERR_OR_NULL(SC301IOT->pins_sleep)) {
+		ret = pinctrl_select_state(SC301IOT->pinctrl,
+					   SC301IOT->pins_sleep);
 		if (ret < 0)
 			dev_dbg(dev, "could not set pins\n");
 	}
-	regulator_bulk_disable(SC301IOT_NUM_SUPPLIES, sc301iot->supplies);
+	regulator_bulk_disable(SC301IOT_NUM_SUPPLIES, SC301IOT->supplies);
 }
 
-static int sc301iot_runtime_resume(struct device *dev)
+static int SC301IOT_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct sc301iot *sc301iot = to_sc301iot(sd);
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 
-	return __sc301iot_power_on(sc301iot);
+	return __SC301IOT_power_on(SC301IOT);
 }
 
-static int sc301iot_runtime_suspend(struct device *dev)
+static int SC301IOT_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct sc301iot *sc301iot = to_sc301iot(sd);
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 
-	__sc301iot_power_off(sc301iot);
+	__SC301IOT_power_off(SC301IOT);
 
 	return 0;
 }
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-static int sc301iot_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int SC301IOT_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct sc301iot *sc301iot = to_sc301iot(sd);
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
 				v4l2_subdev_get_try_format(sd, fh->pad, 0);
-	const struct sc301iot_mode *def_mode = &supported_modes[0];
+	const struct SC301IOT_mode *def_mode = &supported_modes[0];
 
-	mutex_lock(&sc301iot->mutex);
+	mutex_lock(&SC301IOT->mutex);
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
 	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
-	mutex_unlock(&sc301iot->mutex);
+	mutex_unlock(&SC301IOT->mutex);
 	/* No crop or compose */
 
 	return 0;
 }
 #endif
 
-static int sc301iot_enum_frame_interval(struct v4l2_subdev *sd,
+static int SC301IOT_enum_frame_interval(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_pad_config *cfg,
 				       struct v4l2_subdev_frame_interval_enum *fie)
 {
@@ -1868,59 +1843,59 @@ static int sc301iot_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct dev_pm_ops sc301iot_pm_ops = {
-	SET_RUNTIME_PM_OPS(sc301iot_runtime_suspend,
-			   sc301iot_runtime_resume, NULL)
+static const struct dev_pm_ops SC301IOT_pm_ops = {
+	SET_RUNTIME_PM_OPS(SC301IOT_runtime_suspend,
+			   SC301IOT_runtime_resume, NULL)
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-static const struct v4l2_subdev_internal_ops sc301iot_internal_ops = {
-	.open = sc301iot_open,
+static const struct v4l2_subdev_internal_ops SC301IOT_internal_ops = {
+	.open = SC301IOT_open,
 };
 #endif
 
-static const struct v4l2_subdev_core_ops sc301iot_core_ops = {
-	.s_power = sc301iot_s_power,
-	.ioctl = sc301iot_ioctl,
+static const struct v4l2_subdev_core_ops SC301IOT_core_ops = {
+	.s_power = SC301IOT_s_power,
+	.ioctl = SC301IOT_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl32 = sc301iot_compat_ioctl32,
+	.compat_ioctl32 = SC301IOT_compat_ioctl32,
 #endif
 };
 
-static const struct v4l2_subdev_video_ops sc301iot_video_ops = {
-	.s_stream = sc301iot_s_stream,
-	.g_frame_interval = sc301iot_g_frame_interval,
-	.s_frame_interval = sc301iot_s_frame_interval,
+static const struct v4l2_subdev_video_ops SC301IOT_video_ops = {
+	.s_stream = SC301IOT_s_stream,
+	.g_frame_interval = SC301IOT_g_frame_interval,
+	.s_frame_interval = SC301IOT_s_frame_interval,
 };
 
-static const struct v4l2_subdev_pad_ops sc301iot_pad_ops = {
-	.enum_mbus_code = sc301iot_enum_mbus_code,
-	.enum_frame_size = sc301iot_enum_frame_sizes,
-	.enum_frame_interval = sc301iot_enum_frame_interval,
-	.get_fmt = sc301iot_get_fmt,
-	.set_fmt = sc301iot_set_fmt,
-	.get_mbus_config = sc301iot_g_mbus_config,
+static const struct v4l2_subdev_pad_ops SC301IOT_pad_ops = {
+	.enum_mbus_code = SC301IOT_enum_mbus_code,
+	.enum_frame_size = SC301IOT_enum_frame_sizes,
+	.enum_frame_interval = SC301IOT_enum_frame_interval,
+	.get_fmt = SC301IOT_get_fmt,
+	.set_fmt = SC301IOT_set_fmt,
+	.get_mbus_config = SC301IOT_g_mbus_config,
 };
 
-static const struct v4l2_subdev_ops sc301iot_subdev_ops = {
-	.core	= &sc301iot_core_ops,
-	.video	= &sc301iot_video_ops,
-	.pad	= &sc301iot_pad_ops,
+static const struct v4l2_subdev_ops SC301IOT_subdev_ops = {
+	.core	= &SC301IOT_core_ops,
+	.video	= &SC301IOT_video_ops,
+	.pad	= &SC301IOT_pad_ops,
 };
 
-static void sc301iot_modify_fps_info(struct sc301iot *sc301iot)
+static void SC301IOT_modify_fps_info(struct SC301IOT *SC301IOT)
 {
-	const struct sc301iot_mode *mode = sc301iot->cur_mode;
+	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
 
-	sc301iot->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
-					sc301iot->cur_vts;
+	SC301IOT->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+					SC301IOT->cur_vts;
 }
 
-static int sc301iot_set_ctrl(struct v4l2_ctrl *ctrl)
+static int SC301IOT_set_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sc301iot *sc301iot = container_of(ctrl->handler,
-					       struct sc301iot, ctrl_handler);
-	struct i2c_client *client = sc301iot->client;
+	struct SC301IOT *SC301IOT = container_of(ctrl->handler,
+					       struct SC301IOT, ctrl_handler);
+	struct i2c_client *client = SC301IOT->client;
 	s64 max;
 	int ret = 0;
 	u32 val = 0;
@@ -1929,11 +1904,11 @@ static int sc301iot_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = sc301iot->cur_mode->height + ctrl->val - 4;
-		__v4l2_ctrl_modify_range(sc301iot->exposure,
-					 sc301iot->exposure->minimum, max,
-					 sc301iot->exposure->step,
-					 sc301iot->exposure->default_value);
+		max = SC301IOT->cur_mode->height + ctrl->val - 4;
+		__v4l2_ctrl_modify_range(SC301IOT->exposure,
+					 SC301IOT->exposure->minimum, max,
+					 SC301IOT->exposure->step,
+					 SC301IOT->exposure->default_value);
 		break;
 	}
 
@@ -1942,56 +1917,57 @@ static int sc301iot_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		if (sc301iot->cur_mode->hdr_mode == NO_HDR) {
+		if (SC301IOT->cur_mode->hdr_mode == NO_HDR) {
 			ctrl->val = ctrl->val;
 			/* 4 least significant bits of expsoure are fractional part */
-			ret = sc301iot_write_reg(sc301iot->client,
+			ret = SC301IOT_write_reg(SC301IOT->client,
 						SC301IOT_REG_EXPOSURE_H,
 						SC301IOT_REG_VALUE_08BIT,
 						SC301IOT_FETCH_EXP_H(ctrl->val));
-			ret |= sc301iot_write_reg(sc301iot->client,
+			ret |= SC301IOT_write_reg(SC301IOT->client,
 						 SC301IOT_REG_EXPOSURE_M,
 						 SC301IOT_REG_VALUE_08BIT,
 						 SC301IOT_FETCH_EXP_M(ctrl->val));
-			ret |= sc301iot_write_reg(sc301iot->client,
+			ret |= SC301IOT_write_reg(SC301IOT->client,
 						 SC301IOT_REG_EXPOSURE_L,
 						 SC301IOT_REG_VALUE_08BIT,
 						 SC301IOT_FETCH_EXP_L(ctrl->val));
 		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		if (sc301iot->cur_mode->hdr_mode == NO_HDR)
-			ret = sc301iot_set_gain_reg(sc301iot, ctrl->val, SC301IOT_LGAIN);
+		if (SC301IOT->cur_mode->hdr_mode == NO_HDR)
+			ret = SC301IOT_set_gain_reg(SC301IOT, ctrl->val, SC301IOT_LGAIN);
 		break;
 	case V4L2_CID_VBLANK:
-		ret = sc301iot_write_reg(sc301iot->client,
+		ret = SC301IOT_write_reg(SC301IOT->client,
 					SC301IOT_REG_VTS_H,
 					SC301IOT_REG_VALUE_08BIT,
-					(ctrl->val + sc301iot->cur_mode->height)
+					(ctrl->val + SC301IOT->cur_mode->height)
 					>> 8);
-		ret |= sc301iot_write_reg(sc301iot->client,
+		ret |= SC301IOT_write_reg(SC301IOT->client,
 					 SC301IOT_REG_VTS_L,
 					 SC301IOT_REG_VALUE_08BIT,
-					 (ctrl->val + sc301iot->cur_mode->height)
+					 (ctrl->val + SC301IOT->cur_mode->height)
 					 & 0xff);
 		if (!ret)
-			sc301iot->cur_vts = ctrl->val + sc301iot->cur_mode->height;
-		sc301iot_modify_fps_info(sc301iot);
+			SC301IOT->cur_vts = ctrl->val + SC301IOT->cur_mode->height;
+		if (SC301IOT->cur_vts != SC301IOT->cur_mode->vts_def)
+			SC301IOT_modify_fps_info(SC301IOT);
 		break;
 	case V4L2_CID_TEST_PATTERN:
-		ret = sc301iot_enable_test_pattern(sc301iot, ctrl->val);
+		ret = SC301IOT_enable_test_pattern(SC301IOT, ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
-		ret = sc301iot_read_reg(sc301iot->client, SC301IOT_FLIP_MIRROR_REG,
+		ret = SC301IOT_read_reg(SC301IOT->client, SC301IOT_FLIP_MIRROR_REG,
 				       SC301IOT_REG_VALUE_08BIT, &val);
-		ret |= sc301iot_write_reg(sc301iot->client, SC301IOT_FLIP_MIRROR_REG,
+		ret |= SC301IOT_write_reg(SC301IOT->client, SC301IOT_FLIP_MIRROR_REG,
 					 SC301IOT_REG_VALUE_08BIT,
 					 SC301IOT_FETCH_MIRROR(val, ctrl->val));
 		break;
 	case V4L2_CID_VFLIP:
-		ret = sc301iot_read_reg(sc301iot->client, SC301IOT_FLIP_MIRROR_REG,
+		ret = SC301IOT_read_reg(SC301IOT->client, SC301IOT_FLIP_MIRROR_REG,
 				       SC301IOT_REG_VALUE_08BIT, &val);
-		ret |= sc301iot_write_reg(sc301iot->client, SC301IOT_FLIP_MIRROR_REG,
+		ret |= SC301IOT_write_reg(SC301IOT->client, SC301IOT_FLIP_MIRROR_REG,
 					 SC301IOT_REG_VALUE_08BIT,
 					 SC301IOT_FETCH_FLIP(val, ctrl->val));
 		break;
@@ -2006,25 +1982,25 @@ static int sc301iot_set_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static const struct v4l2_ctrl_ops sc301iot_ctrl_ops = {
-	.s_ctrl = sc301iot_set_ctrl,
+static const struct v4l2_ctrl_ops SC301IOT_ctrl_ops = {
+	.s_ctrl = SC301IOT_set_ctrl,
 };
 
-static int sc301iot_initialize_controls(struct sc301iot *sc301iot)
+static int SC301IOT_initialize_controls(struct SC301IOT *SC301IOT)
 {
-	const struct sc301iot_mode *mode;
+	const struct SC301IOT_mode *mode;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
 
-	handler = &sc301iot->ctrl_handler;
-	mode = sc301iot->cur_mode;
+	handler = &SC301IOT->ctrl_handler;
+	mode = SC301IOT->cur_mode;
 	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
-	handler->lock = &sc301iot->mutex;
+	handler->lock = &SC301IOT->mutex;
 
 	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
 				      0, 0, link_freq_menu_items);
@@ -2035,46 +2011,46 @@ static int sc301iot_initialize_controls(struct sc301iot *sc301iot)
 			  0, PIXEL_RATE_WITH_594M_10BIT, 1, PIXEL_RATE_WITH_594M_10BIT);
 
 	h_blank = mode->hts_def - mode->width;
-	sc301iot->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
+	SC301IOT->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
 					    h_blank, h_blank, 1, h_blank);
-	if (sc301iot->hblank)
-		sc301iot->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (SC301IOT->hblank)
+		SC301IOT->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	vblank_def = mode->vts_def - mode->height;
-	sc301iot->vblank = v4l2_ctrl_new_std(handler, &sc301iot_ctrl_ops,
+	SC301IOT->vblank = v4l2_ctrl_new_std(handler, &SC301IOT_ctrl_ops,
 					    V4L2_CID_VBLANK, vblank_def,
 					    SC301IOT_VTS_MAX - mode->height,
 					    1, vblank_def);
 	exposure_max = mode->vts_def - 8;
-	sc301iot->exposure = v4l2_ctrl_new_std(handler, &sc301iot_ctrl_ops,
+	SC301IOT->exposure = v4l2_ctrl_new_std(handler, &SC301IOT_ctrl_ops,
 					      V4L2_CID_EXPOSURE, SC301IOT_EXPOSURE_MIN,
 					      exposure_max, SC301IOT_EXPOSURE_STEP,
 					      mode->exp_def);
-	sc301iot->anal_gain = v4l2_ctrl_new_std(handler, &sc301iot_ctrl_ops,
+	SC301IOT->anal_gain = v4l2_ctrl_new_std(handler, &SC301IOT_ctrl_ops,
 					       V4L2_CID_ANALOGUE_GAIN, SC301IOT_GAIN_MIN,
 					       SC301IOT_GAIN_MAX, SC301IOT_GAIN_STEP,
 					       SC301IOT_GAIN_DEFAULT);
-	sc301iot->test_pattern = v4l2_ctrl_new_std_menu_items(handler,
-							    &sc301iot_ctrl_ops,
+	SC301IOT->test_pattern = v4l2_ctrl_new_std_menu_items(handler,
+							    &SC301IOT_ctrl_ops,
 					V4L2_CID_TEST_PATTERN,
-					ARRAY_SIZE(sc301iot_test_pattern_menu) - 1,
-					0, 0, sc301iot_test_pattern_menu);
-	v4l2_ctrl_new_std(handler, &sc301iot_ctrl_ops,
+					ARRAY_SIZE(SC301IOT_test_pattern_menu) - 1,
+					0, 0, SC301IOT_test_pattern_menu);
+	v4l2_ctrl_new_std(handler, &SC301IOT_ctrl_ops,
 				V4L2_CID_HFLIP, 0, 1, 1, 0);
 
-	v4l2_ctrl_new_std(handler, &sc301iot_ctrl_ops,
+	v4l2_ctrl_new_std(handler, &SC301IOT_ctrl_ops,
 				V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (handler->error) {
 		ret = handler->error;
-		dev_err(&sc301iot->client->dev,
+		dev_err(&SC301IOT->client->dev,
 			"Failed to init controls(%d)\n", ret);
 		goto err_free_handler;
 	}
 
-	sc301iot->subdev.ctrl_handler = handler;
-	sc301iot->has_init_exp = false;
-	sc301iot->cur_fps = mode->max_fps;
-	sc301iot->cur_vts = mode->vts_def;
+	SC301IOT->subdev.ctrl_handler = handler;
+	SC301IOT->has_init_exp = false;
+	SC301IOT->cur_fps = mode->max_fps;
+	SC301IOT->cur_vts = mode->vts_def;
 
 	return 0;
 
@@ -2084,19 +2060,19 @@ err_free_handler:
 	return ret;
 }
 
-static int sc301iot_check_sensor_id(struct sc301iot *sc301iot,
+static int SC301IOT_check_sensor_id(struct SC301IOT *SC301IOT,
 				   struct i2c_client *client)
 {
-	struct device *dev = &sc301iot->client->dev;
+	struct device *dev = &SC301IOT->client->dev;
 	u32 id = 0;
 	int ret;
 
-	if (sc301iot->is_thunderboot) {
+	if (SC301IOT->is_thunderboot) {
 		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
 		return 0;
 	}
 
-	ret = sc301iot_read_reg(client, SC301IOT_REG_CHIP_ID,
+	ret = SC301IOT_read_reg(client, SC301IOT_REG_CHIP_ID,
 			       SC301IOT_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected chip id(0x%04x), ret(%d)\n", id, ret);
@@ -2108,24 +2084,24 @@ static int sc301iot_check_sensor_id(struct sc301iot *sc301iot,
 	return 0;
 }
 
-static int sc301iot_configure_regulators(struct sc301iot *sc301iot)
+static int SC301IOT_configure_regulators(struct SC301IOT *SC301IOT)
 {
 	unsigned int i;
 
 	for (i = 0; i < SC301IOT_NUM_SUPPLIES; i++)
-		sc301iot->supplies[i].supply = SC301IOT_supply_names[i];
+		SC301IOT->supplies[i].supply = SC301IOT_supply_names[i];
 
-	return devm_regulator_bulk_get(&sc301iot->client->dev,
+	return devm_regulator_bulk_get(&SC301IOT->client->dev,
 				       SC301IOT_NUM_SUPPLIES,
-				       sc301iot->supplies);
+				       SC301IOT->supplies);
 }
 
-static int sc301iot_probe(struct i2c_client *client,
+static int SC301IOT_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
-	struct sc301iot *sc301iot;
+	struct SC301IOT *SC301IOT;
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
@@ -2137,39 +2113,39 @@ static int sc301iot_probe(struct i2c_client *client,
 		 (DRIVER_VERSION & 0xff00) >> 8,
 		 DRIVER_VERSION & 0x00ff);
 
-	sc301iot = devm_kzalloc(dev, sizeof(*sc301iot), GFP_KERNEL);
-	if (!sc301iot)
+	SC301IOT = devm_kzalloc(dev, sizeof(*SC301IOT), GFP_KERNEL);
+	if (!SC301IOT)
 		return -ENOMEM;
 
 	of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
-				   &sc301iot->module_index);
+				   &SC301IOT->module_index);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
-				       &sc301iot->module_facing);
+				       &SC301IOT->module_facing);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
-				       &sc301iot->module_name);
+				       &SC301IOT->module_name);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
-				       &sc301iot->len_name);
+				       &SC301IOT->len_name);
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
 	}
 
-	sc301iot->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
-	sc301iot->sync_mode = NO_SYNC_MODE;
+	SC301IOT->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+	SC301IOT->sync_mode = NO_SYNC_MODE;
 	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE, &sync_mode_name);
 	if (!ret) {
 		if (strcmp(sync_mode_name, RKMODULE_EXTERNAL_MASTER_MODE) == 0)
-			sc301iot->sync_mode = EXTERNAL_MASTER_MODE;
+			SC301IOT->sync_mode = EXTERNAL_MASTER_MODE;
 		else if (strcmp(sync_mode_name, RKMODULE_INTERNAL_MASTER_MODE) == 0)
-			sc301iot->sync_mode = INTERNAL_MASTER_MODE;
+			SC301IOT->sync_mode = INTERNAL_MASTER_MODE;
 		else if (strcmp(sync_mode_name, RKMODULE_SLAVE_MODE) == 0)
-			sc301iot->sync_mode = SLAVE_MODE;
+			SC301IOT->sync_mode = SLAVE_MODE;
 	}
 
-	switch (sc301iot->sync_mode) {
+	switch (SC301IOT->sync_mode) {
 	default:
-		sc301iot->sync_mode = NO_SYNC_MODE; break;
+		SC301IOT->sync_mode = NO_SYNC_MODE; break;
 	case NO_SYNC_MODE:
 		dev_info(dev, "sync_mode = [NO_SYNC_MODE]\n"); break;
 	case EXTERNAL_MASTER_MODE:
@@ -2179,100 +2155,100 @@ static int sc301iot_probe(struct i2c_client *client,
 		dev_info(dev, "sync_mode = [SLAVE_MODE]\n"); break;
 	}
 
-	sc301iot->client = client;
+	SC301IOT->client = client;
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 		if (hdr_mode == supported_modes[i].hdr_mode) {
-			sc301iot->cur_mode = &supported_modes[i];
+			SC301IOT->cur_mode = &supported_modes[i];
 			break;
 		}
 	}
 	if (i == ARRAY_SIZE(supported_modes))
-		sc301iot->cur_mode = &supported_modes[0];
+		SC301IOT->cur_mode = &supported_modes[0];
 
-	sc301iot->xvclk = devm_clk_get(dev, "xvclk");
-	if (IS_ERR(sc301iot->xvclk)) {
+	SC301IOT->xvclk = devm_clk_get(dev, "xvclk");
+	if (IS_ERR(SC301IOT->xvclk)) {
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
 
-	if (sc301iot->is_thunderboot) {
-		sc301iot->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
-		if (IS_ERR(sc301iot->reset_gpio))
+	if (SC301IOT->is_thunderboot) {
+		SC301IOT->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+		if (IS_ERR(SC301IOT->reset_gpio))
 			dev_warn(dev, "Failed to get reset-gpios\n");
 
-		sc301iot->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
-		if (IS_ERR(sc301iot->pwdn_gpio))
+		SC301IOT->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+		if (IS_ERR(SC301IOT->pwdn_gpio))
 			dev_warn(dev, "Failed to get pwdn-gpios\n");
 	} else {
-		sc301iot->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-		if (IS_ERR(sc301iot->reset_gpio))
+		SC301IOT->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+		if (IS_ERR(SC301IOT->reset_gpio))
 			dev_warn(dev, "Failed to get reset-gpios\n");
 
-		sc301iot->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-		if (IS_ERR(sc301iot->pwdn_gpio))
+		SC301IOT->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+		if (IS_ERR(SC301IOT->pwdn_gpio))
 			dev_warn(dev, "Failed to get pwdn-gpios\n");
 	}
 
-	sc301iot->pinctrl = devm_pinctrl_get(dev);
-	if (!IS_ERR(sc301iot->pinctrl)) {
-		sc301iot->pins_default =
-			pinctrl_lookup_state(sc301iot->pinctrl,
+	SC301IOT->pinctrl = devm_pinctrl_get(dev);
+	if (!IS_ERR(SC301IOT->pinctrl)) {
+		SC301IOT->pins_default =
+			pinctrl_lookup_state(SC301IOT->pinctrl,
 					     OF_CAMERA_PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(sc301iot->pins_default))
+		if (IS_ERR(SC301IOT->pins_default))
 			dev_err(dev, "could not get default pinstate\n");
 
-		sc301iot->pins_sleep =
-			pinctrl_lookup_state(sc301iot->pinctrl,
+		SC301IOT->pins_sleep =
+			pinctrl_lookup_state(SC301IOT->pinctrl,
 					     OF_CAMERA_PINCTRL_STATE_SLEEP);
-		if (IS_ERR(sc301iot->pins_sleep))
+		if (IS_ERR(SC301IOT->pins_sleep))
 			dev_err(dev, "could not get sleep pinstate\n");
 	} else {
 		dev_err(dev, "no pinctrl\n");
 	}
 
-	ret = sc301iot_configure_regulators(sc301iot);
+	ret = SC301IOT_configure_regulators(SC301IOT);
 	if (ret) {
 		dev_err(dev, "Failed to get power regulators\n");
 		return ret;
 	}
 
-	mutex_init(&sc301iot->mutex);
+	mutex_init(&SC301IOT->mutex);
 
-	sd = &sc301iot->subdev;
-	v4l2_i2c_subdev_init(sd, client, &sc301iot_subdev_ops);
-	ret = sc301iot_initialize_controls(sc301iot);
+	sd = &SC301IOT->subdev;
+	v4l2_i2c_subdev_init(sd, client, &SC301IOT_subdev_ops);
+	ret = SC301IOT_initialize_controls(SC301IOT);
 	if (ret)
 		goto err_destroy_mutex;
 
-	ret = __sc301iot_power_on(sc301iot);
+	ret = __SC301IOT_power_on(SC301IOT);
 	if (ret)
 		goto err_free_handler;
 
-	ret = sc301iot_check_sensor_id(sc301iot, client);
+	ret = SC301IOT_check_sensor_id(SC301IOT, client);
 	if (ret)
 		goto err_power_off;
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	sd->internal_ops = &sc301iot_internal_ops;
+	sd->internal_ops = &SC301IOT_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	sc301iot->pad.flags = MEDIA_PAD_FL_SOURCE;
+	SC301IOT->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret = media_entity_pads_init(&sd->entity, 1, &sc301iot->pad);
+	ret = media_entity_pads_init(&sd->entity, 1, &SC301IOT->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
 	memset(facing, 0, sizeof(facing));
-	if (strcmp(sc301iot->module_facing, "back") == 0)
+	if (strcmp(SC301IOT->module_facing, "back") == 0)
 		facing[0] = 'b';
 	else
 		facing[0] = 'f';
 
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 sc301iot->module_index, facing,
+		 SC301IOT->module_index, facing,
 		 SC301IOT_NAME, dev_name(sd->dev));
 	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
@@ -2282,10 +2258,7 @@ static int sc301iot_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	if (sc301iot->is_thunderboot)
-		pm_runtime_get_sync(dev);
-	else
-		pm_runtime_idle(dev);
+	pm_runtime_idle(dev);
 
 	return 0;
 
@@ -2294,67 +2267,67 @@ err_clean_entity:
 	media_entity_cleanup(&sd->entity);
 #endif
 err_power_off:
-	__sc301iot_power_off(sc301iot);
+	__SC301IOT_power_off(SC301IOT);
 err_free_handler:
-	v4l2_ctrl_handler_free(&sc301iot->ctrl_handler);
+	v4l2_ctrl_handler_free(&SC301IOT->ctrl_handler);
 err_destroy_mutex:
-	mutex_destroy(&sc301iot->mutex);
+	mutex_destroy(&SC301IOT->mutex);
 
 	return ret;
 }
 
-static int sc301iot_remove(struct i2c_client *client)
+static int SC301IOT_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct sc301iot *sc301iot = to_sc301iot(sd);
+	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 
 	v4l2_async_unregister_subdev(sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
 #endif
-	v4l2_ctrl_handler_free(&sc301iot->ctrl_handler);
-	mutex_destroy(&sc301iot->mutex);
+	v4l2_ctrl_handler_free(&SC301IOT->ctrl_handler);
+	mutex_destroy(&SC301IOT->mutex);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))
-		__sc301iot_power_off(sc301iot);
+		__SC301IOT_power_off(SC301IOT);
 	pm_runtime_set_suspended(&client->dev);
 
 	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
-static const struct of_device_id sc301iot_of_match[] = {
-	{ .compatible = "smartsens,sc301iot" },
+static const struct of_device_id SC301IOT_of_match[] = {
+	{ .compatible = "smartsens,SC301IOT" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, sc301iot_of_match);
+MODULE_DEVICE_TABLE(of, SC301IOT_of_match);
 #endif
 
-static const struct i2c_device_id sc301iot_match_id[] = {
-	{ "smartsens,sc301iot", 0 },
+static const struct i2c_device_id SC301IOT_match_id[] = {
+	{ "smartsens,SC301IOT", 0 },
 	{ },
 };
 
-static struct i2c_driver sc301iot_i2c_driver = {
+static struct i2c_driver SC301IOT_i2c_driver = {
 	.driver = {
 		.name = SC301IOT_NAME,
-		.pm = &sc301iot_pm_ops,
-		.of_match_table = of_match_ptr(sc301iot_of_match),
+		.pm = &SC301IOT_pm_ops,
+		.of_match_table = of_match_ptr(SC301IOT_of_match),
 	},
-	.probe		= &sc301iot_probe,
-	.remove		= &sc301iot_remove,
-	.id_table	= sc301iot_match_id,
+	.probe		= &SC301IOT_probe,
+	.remove		= &SC301IOT_remove,
+	.id_table	= SC301IOT_match_id,
 };
 
 static int __init sensor_mod_init(void)
 {
-	return i2c_add_driver(&sc301iot_i2c_driver);
+	return i2c_add_driver(&SC301IOT_i2c_driver);
 }
 
 static void __exit sensor_mod_exit(void)
 {
-	i2c_del_driver(&sc301iot_i2c_driver);
+	i2c_del_driver(&SC301IOT_i2c_driver);
 }
 
 #if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
@@ -2364,5 +2337,5 @@ device_initcall_sync(sensor_mod_init);
 #endif
 module_exit(sensor_mod_exit);
 
-MODULE_DESCRIPTION("smartsens sc301iot sensor driver");
+MODULE_DESCRIPTION("smartsens SC301IOT sensor driver");
 MODULE_LICENSE("GPL");

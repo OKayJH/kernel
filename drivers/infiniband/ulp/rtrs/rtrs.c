@@ -37,10 +37,8 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 			goto err;
 
 		iu->dma_addr = ib_dma_map_single(dma_dev, iu->buf, size, dir);
-		if (ib_dma_mapping_error(dma_dev, iu->dma_addr)) {
-			kfree(iu->buf);
+		if (ib_dma_mapping_error(dma_dev, iu->dma_addr))
 			goto err;
-		}
 
 		iu->cqe.done  = done;
 		iu->size      = size;

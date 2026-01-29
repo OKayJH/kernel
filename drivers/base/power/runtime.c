@@ -464,10 +464,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	/* Pending requests need to be canceled. */
 	dev->power.request = RPM_REQ_NONE;
 
-	callback = RPM_GET_CALLBACK(dev, runtime_idle);
-
-	/* If no callback assume success. */
-	if (!callback || dev->power.no_callbacks)
+	if (dev->power.no_callbacks)
 		goto out;
 
 	/* Carry out an asynchronous or a synchronous idle notification. */
@@ -483,17 +480,10 @@ static int rpm_idle(struct device *dev, int rpmflags)
 
 	dev->power.idle_notification = true;
 
-	if (dev->power.irq_safe)
-		spin_unlock(&dev->power.lock);
-	else
-		spin_unlock_irq(&dev->power.lock);
+	callback = RPM_GET_CALLBACK(dev, runtime_idle);
 
-	retval = callback(dev);
-
-	if (dev->power.irq_safe)
-		spin_lock(&dev->power.lock);
-	else
-		spin_lock_irq(&dev->power.lock);
+	if (callback)
+		retval = __rpm_callback(callback, dev);
 
 	dev->power.idle_notification = false;
 	wake_up_all(&dev->power.wait_queue);
@@ -675,8 +665,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	if (retval)
 		goto fail;
 
-	dev_pm_enable_wake_irq_complete(dev);
-
  no_callback:
 	__update_runtime_status(dev, RPM_SUSPENDED);
 	pm_runtime_deactivate_timer(dev);
@@ -722,7 +710,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	return retval;
 
  fail:
-	dev_pm_disable_wake_irq_check(dev, true);
+	dev_pm_disable_wake_irq_check(dev);
 	__update_runtime_status(dev, RPM_ACTIVE);
 	dev->power.deferred_resume = false;
 	wake_up_all(&dev->power.wait_queue);
@@ -905,7 +893,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
-	dev_pm_disable_wake_irq_check(dev, false);
+	dev_pm_disable_wake_irq_check(dev);
 	retval = rpm_callback(callback, dev);
 	if (retval) {
 		__update_runtime_status(dev, RPM_SUSPENDED);
@@ -1478,28 +1466,6 @@ void pm_runtime_enable(struct device *dev)
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 }
 EXPORT_SYMBOL_GPL(pm_runtime_enable);
-
-static void pm_runtime_disable_action(void *data)
-{
-	pm_runtime_dont_use_autosuspend(data);
-	pm_runtime_disable(data);
-}
-
-/**
- * devm_pm_runtime_enable - devres-enabled version of pm_runtime_enable.
- *
- * NOTE: this will also handle calling pm_runtime_dont_use_autosuspend() for
- * you at driver exit time if needed.
- *
- * @dev: Device to handle.
- */
-int devm_pm_runtime_enable(struct device *dev)
-{
-	pm_runtime_enable(dev);
-
-	return devm_add_action_or_reset(dev, pm_runtime_disable_action, dev);
-}
-EXPORT_SYMBOL_GPL(devm_pm_runtime_enable);
 
 /**
  * pm_runtime_forbid - Block runtime PM of a device.

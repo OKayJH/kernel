@@ -133,7 +133,6 @@ static int dasd_ioctl_resume(struct dasd_block *block)
 	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
 
 	dasd_schedule_block_bh(block);
-	dasd_schedule_device_bh(base);
 	return 0;
 }
 
@@ -506,10 +505,10 @@ static int __dasd_ioctl_information(struct dasd_block *block,
 
 	memcpy(dasd_info->type, base->discipline->name, 4);
 
-	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
+	spin_lock_irqsave(&block->queue_lock, flags);
 	list_for_each(l, &base->ccw_queue)
 		dasd_info->chanq_len++;
-	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
+	spin_unlock_irqrestore(&block->queue_lock, flags);
 	return 0;
 }
 

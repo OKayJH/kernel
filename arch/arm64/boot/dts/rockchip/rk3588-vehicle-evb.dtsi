@@ -218,8 +218,6 @@
 		simple-audio-card,frame-master = <&codec_master>;
 		simple-audio-card,cpu {
 			sound-dai = <&i2s0_8ch>;
-			dai-tdm-slot-num = <8>;
-			dai-tdm-slot-width = <32>;
 		};
 		codec_master: simple-audio-card,codec {
 			sound-dai = <&dummy_codec>;
@@ -412,7 +410,6 @@
 
 &i2s0_8ch {
 	status = "okay";
-	rockchip,tdm-fsync-half-frame;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_lrck
 		     &i2s0_sclk
@@ -647,7 +644,6 @@
 };
 
 &usbdp_phy1 {
-	maximum-speed = "high-speed";
 	rockchip,dp-lane-mux = <3 2 1 0>;
 	status = "okay";
 };
@@ -657,6 +653,7 @@
 };
 
 &usbdp_phy1_u3 {
+	maximum-speed = "high-speed";
 	status = "okay";
 };
 

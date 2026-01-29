@@ -627,9 +627,7 @@ struct rk817_battery_device {
 	bool				change; /* Battery status change, report information */
 };
 
-#ifdef CONFIG_PM_SLEEP
 static void rk817_bat_resume_work(struct work_struct *work);
-#endif
 
 static u64 get_boot_sec(void)
 {
@@ -652,9 +650,6 @@ static u32 interpolate(int value, u32 *table, int size)
 {
 	u8 i;
 	u16 d;
-
-	if (size < 2)
-		return 0;
 
 	for (i = 0; i < size; i++) {
 		if (value < table[i])
@@ -1604,9 +1599,6 @@ static void rk817_bat_first_pwron(struct rk817_battery_device *battery)
 				     battery->pwron_voltage) * 1000;/* uAH */
 	battery->dsoc = battery->rsoc;
 	battery->fcc	= battery->pdata->design_capacity;
-	if (battery->fcc < MIN_FCC)
-		battery->fcc = MIN_FCC;
-
 	battery->nac = rk817_bat_vol_to_cap(battery, battery->pwron_voltage);
 
 	rk817_bat_update_qmax(battery, battery->qmax);
@@ -1809,7 +1801,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	}
 
 	pdata->ocv_size = length / sizeof(u32);
-	if (pdata->ocv_size < 2) {
+	if (pdata->ocv_size <= 0) {
 		dev_err(dev, "invalid ocv table\n");
 		return -EINVAL;
 	}
@@ -2781,8 +2773,6 @@ static void rk817_bat_finish_algorithm(struct rk817_battery_device *battery)
 		finish_sec = base2sec(battery->finish_base);
 
 		soc_sec = battery->fcc * 3600 / 100 / DIV(finish_current);
-		if (soc_sec == 0)
-			soc_sec = 1;
 		plus_soc = finish_sec / DIV(soc_sec);
 		if (finish_sec > soc_sec) {
 			rest = finish_sec % soc_sec;
@@ -3057,9 +3047,7 @@ static int rk817_battery_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&battery->bat_delay_work, rk817_battery_work);
 	queue_delayed_work(battery->bat_monitor_wq, &battery->bat_delay_work,
 			   msecs_to_jiffies(TIMER_MS_COUNTS * 5));
-#ifdef CONFIG_PM_SLEEP
 	INIT_WORK(&battery->resume_work, rk817_bat_resume_work);
-#endif
 
 	ret = rk817_bat_init_power_supply(battery);
 	if (ret) {
@@ -3091,7 +3079,6 @@ static void rk817_battery_shutdown(struct platform_device *dev)
 {
 }
 
-#ifdef CONFIG_PM_SLEEP
 static time64_t rk817_get_rtc_sec(void)
 {
 	int err;
@@ -3113,6 +3100,7 @@ static time64_t rk817_get_rtc_sec(void)
 	return rtc_tm_to_time64(&tm);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int  rk817_bat_pm_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

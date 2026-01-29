@@ -149,7 +149,6 @@
 /* feature register */
 #define REG_BLOCK_LOCK		0xa0
 #define BL_ALL_UNLOCKED		0x00
-#define HWP_EN			0x02 /* Skyhigh feature, Hardware write protection */
 
 /* configuration register */
 #define REG_CFG			0xb0
@@ -247,7 +246,6 @@ extern const struct spinand_manufacturer fmsh_spinand_manufacturer;
 extern const struct spinand_manufacturer foresee_spinand_manufacturer;
 extern const struct spinand_manufacturer gigadevice_spinand_manufacturer;
 extern const struct spinand_manufacturer gsto_spinand_manufacturer;
-extern const struct spinand_manufacturer hiksemi_spinand_manufacturer;
 extern const struct spinand_manufacturer hyf_spinand_manufacturer;
 extern const struct spinand_manufacturer jsc_spinand_manufacturer;
 extern const struct spinand_manufacturer macronix_spinand_manufacturer;
@@ -257,11 +255,9 @@ extern const struct spinand_manufacturer toshiba_spinand_manufacturer;
 extern const struct spinand_manufacturer silicongo_spinand_manufacturer;
 extern const struct spinand_manufacturer skyhigh_spinand_manufacturer;
 extern const struct spinand_manufacturer unim_spinand_manufacturer;
-extern const struct spinand_manufacturer unim_zl_spinand_manufacturer;
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;
 extern const struct spinand_manufacturer xincun_spinand_manufacturer;
 extern const struct spinand_manufacturer xtx_spinand_manufacturer;
-extern const struct spinand_manufacturer zbit_spinand_manufacturer;
 
 /**
  * struct spinand_op_variants - SPI NAND operation variants

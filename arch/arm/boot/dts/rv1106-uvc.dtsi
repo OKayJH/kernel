@@ -87,7 +87,6 @@
 };
 
 &u2phy_otg {
-	rockchip,dis-u2-susphy;
 	status = "okay";
 };
 

@@ -2115,14 +2115,10 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		break;
 
 	case APIC_SELF_IPI:
-		/*
-		 * Self-IPI exists only when x2APIC is enabled.  Bits 7:0 hold
-		 * the vector, everything else is reserved.
-		 */
-		if (!apic_x2apic_mode(apic) || (val & ~APIC_VECTOR_MASK))
-			ret = 1;
+		if (apic_x2apic_mode(apic))
+			kvm_apic_send_ipi(apic, APIC_DEST_SELF | (val & APIC_VECTOR_MASK), 0);
 		else
-			kvm_apic_send_ipi(apic, APIC_DEST_SELF | val, 0);
+			ret = 1;
 		break;
 	default:
 		ret = 1;
@@ -2397,17 +2393,13 @@ int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type)
 {
 	u32 reg = kvm_lapic_get_reg(apic, lvt_type);
 	int vector, mode, trig_mode;
-	int r;
 
 	if (kvm_apic_hw_enabled(apic) && !(reg & APIC_LVT_MASKED)) {
 		vector = reg & APIC_VECTOR_MASK;
 		mode = reg & APIC_MODE_MASK;
 		trig_mode = reg & APIC_LVT_LEVEL_TRIGGER;
-
-		r = __apic_accept_irq(apic, mode, vector, 1, trig_mode, NULL);
-		if (r && lvt_type == APIC_LVTPC)
-			kvm_lapic_set_reg(apic, APIC_LVTPC, reg | APIC_LVT_MASKED);
-		return r;
+		return __apic_accept_irq(apic, mode, vector, 1, trig_mode,
+					NULL);
 	}
 	return 0;
 }

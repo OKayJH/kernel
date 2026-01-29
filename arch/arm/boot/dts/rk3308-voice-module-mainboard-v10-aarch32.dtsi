@@ -390,14 +390,6 @@
 	status = "okay";
 };
 
-&pinctrl {
-	wireless-bluetooth {
-		uart4_gpios: uart4-gpios {
-			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-};
-
 &pwm3 {
 	status = "okay";
 	/* Used for IR */

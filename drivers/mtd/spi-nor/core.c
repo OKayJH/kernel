@@ -855,22 +855,21 @@ static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
 		ret = spi_nor_read_cr(nor, &sr_cr[1]);
 		if (ret)
 			return ret;
-	} else if (spi_nor_get_protocol_width(nor->read_proto) == 4 &&
-		   spi_nor_get_protocol_width(nor->write_proto) == 4 &&
-		   nor->params->quad_enable) {
+	} else if (nor->params->quad_enable) {
 		/*
 		 * If the Status Register 2 Read command (35h) is not
 		 * supported, we should at least be sure we don't
 		 * change the value of the SR2 Quad Enable bit.
 		 *
-		 * When the Quad Enable method is set and the buswidth is 4, we
-		 * can safely assume that the value of the QE bit is one, as a
-		 * consequence of the nor->params->quad_enable() call.
+		 * We can safely assume that when the Quad Enable method is
+		 * set, the value of the QE bit is one, as a consequence of the
+		 * nor->params->quad_enable() call.
 		 *
-		 * According to the JESD216 revB standard, BFPT DWORDS[15],
-		 * bits 22:20, the 16-bit Write Status (01h) command is
-		 * available just for the cases in which the QE bit is
-		 * described in SR2 at BIT(1).
+		 * We can safely assume that the Quad Enable bit is present in
+		 * the Status Register 2 at BIT(1). According to the JESD216
+		 * revB standard, BFPT DWORDS[15], bits 22:20, the 16-bit
+		 * Write Status (01h) command is available just for the cases
+		 * in which the QE bit is described in SR2 at BIT(1).
 		 */
 		sr_cr[1] = SR2_QUAD_EN_BIT1;
 	} else {
@@ -970,11 +969,12 @@ static int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr)
 		return ret;
 
 	sr_cr[1] = cr;
-	sr_written = sr_cr[0];
 
 	ret = spi_nor_write_sr(nor, sr_cr, 2);
 	if (ret)
 		return ret;
+
+	sr_written = sr_cr[0];
 
 	ret = spi_nor_read_sr(nor, sr_cr);
 	if (ret)
@@ -1314,8 +1314,6 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 			continue;
 
 		erase = &map->erase_type[i];
-		if (!erase->size)
-			continue;
 
 		/* Alignment is not mandatory for overlaid regions */
 		if (region->offset & SNOR_OVERLAID_REGION &&
@@ -1559,7 +1557,7 @@ destroy_erase_cmd_list:
 static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	u32 addr, len, target;
+	u32 addr, len;
 	uint32_t rem;
 	int ret;
 
@@ -1612,21 +1610,11 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* "sector"-at-a-time erase */
 	} else if (spi_nor_has_uniform_erase(nor)) {
 		while (len) {
-#ifdef CONFIG_MTD_SPI_NOR_AUTO_MERGE
-			if (addr < nor->auto_merge_single_chip_size)
-				nor->spimem->spi->cs_gpio = 0;
-			else
-				nor->spimem->spi->cs_gpio = 1;
-			target = addr - nor->spimem->spi->cs_gpio *
-				nor->auto_merge_single_chip_size;
-#else
-			target = addr;
-#endif
 			ret = spi_nor_write_enable(nor);
 			if (ret)
 				goto erase_err;
 
-			ret = spi_nor_erase_sector(nor, target);
+			ret = spi_nor_erase_sector(nor, addr);
 			if (ret)
 				goto erase_err;
 
@@ -2260,29 +2248,7 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	while (len) {
 		loff_t addr = from;
-#ifdef CONFIG_MTD_SPI_NOR_AUTO_MERGE
-		size_t read_len = len;
 
-		if (addr < nor->auto_merge_single_chip_size &&
-		    (addr + len) > nor->auto_merge_single_chip_size)
-			read_len = nor->auto_merge_single_chip_size - addr;
-		if (addr < nor->auto_merge_single_chip_size)
-			nor->spimem->spi->cs_gpio = 0;
-		else
-			nor->spimem->spi->cs_gpio = 1;
-		addr -= nor->spimem->spi->cs_gpio * nor->auto_merge_single_chip_size;
-		addr = spi_nor_convert_addr(nor, addr);
-		ret = spi_nor_read_data(nor, addr, read_len, buf);
-		if (ret == 0) {
-			/* We shouldn't see 0-length reads */
-			ret = -EIO;
-			goto read_err;
-		}
-		if (ret < 0)
-			goto read_err;
-
-		WARN_ON(ret > read_len);
-#else
 		addr = spi_nor_convert_addr(nor, addr);
 
 		ret = spi_nor_read_data(nor, addr, len, buf);
@@ -2295,7 +2261,6 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 			goto read_err;
 
 		WARN_ON(ret > len);
-#endif
 		*retlen += ret;
 		buf += ret;
 		from += ret;
@@ -2330,13 +2295,6 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 		ssize_t written;
 		loff_t addr = to + i;
 
-#ifdef CONFIG_MTD_SPI_NOR_AUTO_MERGE
-		if (addr < nor->auto_merge_single_chip_size)
-			nor->spimem->spi->cs_gpio = 0;
-		else
-			nor->spimem->spi->cs_gpio = 1;
-		addr -= nor->spimem->spi->cs_gpio * nor->auto_merge_single_chip_size;
-#endif
 		/*
 		 * If page_size is a power of two, the offset can be quickly
 		 * calculated with an AND operation. On the other cases we
@@ -2605,15 +2563,6 @@ void spi_nor_set_erase_type(struct spi_nor_erase_type *erase, u32 size,
 	/* JEDEC JESD216B Standard imposes erase sizes to be power of 2. */
 	erase->size_shift = ffs(erase->size) - 1;
 	erase->size_mask = (1 << erase->size_shift) - 1;
-}
-
-/**
- * spi_nor_mask_erase_type() - mask out a SPI NOR erase type
- * @erase:	pointer to a structure that describes a SPI NOR erase type
- */
-void spi_nor_mask_erase_type(struct spi_nor_erase_type *erase)
-{
-	erase->size = 0;
 }
 
 /**
@@ -3179,13 +3128,6 @@ static void spi_nor_resume(struct mtd_info *mtd)
 	int ret;
 
 	/* re-initialize the nor chip */
-#ifdef CONFIG_MTD_SPI_NOR_AUTO_MERGE
-	nor->spimem->spi->cs_gpio = 0;
-	ret = spi_nor_init(nor);
-	if (ret)
-		dev_err(dev, "resume() failed\n");
-	nor->spimem->spi->cs_gpio = 1;
-#endif
 	ret = spi_nor_init(nor);
 	if (ret)
 		dev_err(dev, "resume() failed\n");
@@ -3337,9 +3279,6 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	int ret;
 	int i;
 
-#ifdef CONFIG_MTD_SPI_NOR_AUTO_MERGE
-	nor->spimem->spi->cs_gpio = 0;
-#endif
 	ret = spi_nor_check(nor);
 	if (ret)
 		return ret;
@@ -3484,22 +3423,6 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 				mtd->eraseregions[i].erasesize,
 				mtd->eraseregions[i].erasesize / 1024,
 				mtd->eraseregions[i].numblocks);
-
-#ifdef CONFIG_MTD_SPI_NOR_AUTO_MERGE
-	nor->auto_merge_single_chip_size = nor->params->size;
-	nor->spimem->spi->cs_gpio = 1;
-	if (IS_ERR(spi_nor_read_id(nor))) {
-		dev_info(dev, "spinor enable auto_merge, but only cs0 valid\n");
-		return 0;
-	}
-	ret = spi_nor_init(nor);
-	if (!ret) {
-		mtd->size = mtd->size * 2;
-		nor->params->size = nor->params->size * 2;
-		dev_info(dev, "spinor enable auto_merge\n");
-	}
-#endif
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_nor_scan);

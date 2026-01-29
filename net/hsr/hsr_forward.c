@@ -186,7 +186,6 @@ static struct sk_buff *prp_fill_rct(struct sk_buff *skb,
 	set_prp_LSDU_size(trailer, lsdu_size);
 	trailer->sequence_nr = htons(frame->sequence_nr);
 	trailer->PRP_suffix = htons(ETH_P_PRP);
-	skb->protocol = eth_hdr(skb)->h_proto;
 
 	return skb;
 }
@@ -227,7 +226,6 @@ static struct sk_buff *hsr_fill_tag(struct sk_buff *skb,
 	hsr_ethhdr->hsr_tag.encap_proto = hsr_ethhdr->ethhdr.h_proto;
 	hsr_ethhdr->ethhdr.h_proto = htons(proto_version ?
 			ETH_P_HSR : ETH_P_PRP);
-	skb->protocol = hsr_ethhdr->ethhdr.h_proto;
 
 	return skb;
 }
@@ -296,7 +294,9 @@ struct sk_buff *prp_create_tagged_frame(struct hsr_frame_info *frame,
 	skb = skb_copy_expand(frame->skb_std, 0,
 			      skb_tailroom(frame->skb_std) + HSR_HLEN,
 			      GFP_ATOMIC);
-	return prp_fill_rct(skb, frame, port);
+	prp_fill_rct(skb, frame, port);
+
+	return skb;
 }
 
 static void hsr_deliver_master(struct sk_buff *skb, struct net_device *dev,
@@ -435,6 +435,7 @@ static void handle_std_frame(struct sk_buff *skb,
 {
 	struct hsr_port *port = frame->port_rcv;
 	struct hsr_priv *hsr = port->hsr;
+	unsigned long irqflags;
 
 	frame->skb_hsr = NULL;
 	frame->skb_prp = NULL;
@@ -444,20 +445,17 @@ static void handle_std_frame(struct sk_buff *skb,
 		frame->is_from_san = true;
 	} else {
 		/* Sequence nr for the master node */
-		lockdep_assert_held(&hsr->seqnr_lock);
+		spin_lock_irqsave(&hsr->seqnr_lock, irqflags);
 		frame->sequence_nr = hsr->sequence_nr;
 		hsr->sequence_nr++;
+		spin_unlock_irqrestore(&hsr->seqnr_lock, irqflags);
 	}
 }
 
 int hsr_fill_frame_info(__be16 proto, struct sk_buff *skb,
 			struct hsr_frame_info *frame)
 {
-	struct hsr_port *port = frame->port_rcv;
-	struct hsr_priv *hsr = port->hsr;
-
-	/* HSRv0 supervisory frames double as a tag so treat them as tagged. */
-	if ((!hsr->prot_version && proto == htons(ETH_P_PRP)) ||
+	if (proto == htons(ETH_P_PRP) ||
 	    proto == htons(ETH_P_HSR)) {
 		/* Check if skb contains hsr_ethhdr */
 		if (skb->mac_len < sizeof(struct hsr_ethhdr))
@@ -529,7 +527,6 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 		proto = vlan_hdr->vlanhdr.h_vlan_encapsulated_proto;
 		/* FIXME: */
 		netdev_warn_once(skb->dev, "VLAN not yet supported");
-		return -EINVAL;
 	}
 
 	frame->is_from_san = false;
@@ -548,13 +545,11 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 {
 	struct hsr_frame_info frame;
 
-	rcu_read_lock();
 	if (fill_frame_info(&frame, skb, port) < 0)
 		goto out_drop;
 
 	hsr_register_frame_in(frame.node_src, port, frame.sequence_nr);
 	hsr_forward_do(&frame);
-	rcu_read_unlock();
 	/* Gets called for ingress frames as well as egress from master port.
 	 * So check and increment stats for master port only here.
 	 */
@@ -569,7 +564,6 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 	return;
 
 out_drop:
-	rcu_read_unlock();
 	port->dev->stats.tx_dropped++;
 	kfree_skb(skb);
 }

@@ -708,11 +708,13 @@ static void lt7911uxc_cphy_timing_config(struct v4l2_subdev *sd)
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
 
 	if (lt7911uxc->bus_cfg.bus_type == V4L2_MBUS_CSI2_CPHY) {
+		lt7911uxc_i2c_enable(sd);
 		while (i2c_rd8(sd, HS_RQST_PRE_REG) != 0x3c) {
 			i2c_wr8(sd, HS_RQST_PRE_REG, 0x3c);
 			usleep_range(500, 600);
 		}
 		// i2c_wr8(sd, HS_TRAIL, 0x0b);
+		lt7911uxc_i2c_disable(sd);
 	}
 
 	v4l2_dbg(1, debug, sd, "%s config timing succeed\n", __func__);
@@ -1176,14 +1178,15 @@ static long lt7911uxc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == PHY_VENDOR_SAMSUNG)
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
 			rk3588_dcphy_param = *dphy_param;
 		dev_dbg(&lt7911uxc->i2c_client->dev,
 			"sensor set dphy param\n");
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		*dphy_param = rk3588_dcphy_param;
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+			*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&lt7911uxc->i2c_client->dev,
 			"sensor get dphy param\n");
 		break;

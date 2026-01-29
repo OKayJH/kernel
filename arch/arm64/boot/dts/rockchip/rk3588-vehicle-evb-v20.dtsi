@@ -118,6 +118,14 @@
 		status = "okay";
 	};
 
+	dummy_codec: dummy-codec {
+		status = "okay";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk3308_reset>;
+	};
+
 	car_rk3308_sound: car-rk3308-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -128,11 +136,9 @@
 		simple-audio-card,frame-master = <&codec_master>;
 		simple-audio-card,cpu {
 			sound-dai = <&i2s0_8ch>;
-			dai-tdm-slot-num = <8>;
-			dai-tdm-slot-width = <32>;
 		};
 		codec_master: simple-audio-card,codec {
-			sound-dai = <&spi_codec>;
+			sound-dai = <&dummy_codec>;
 		};
 	};
 };
@@ -157,7 +163,7 @@
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "phydisb";
 	pinctrl-0 = <&gmac0_miim
 		     &gmac0_tx_bus2
 		     &gmac0_rx_bus2
@@ -190,7 +196,6 @@
 
 &i2s0_8ch {
 	status = "okay";
-	rockchip,tdm-fsync-half-frame;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_lrck
 		     &i2s0_sclk
@@ -274,7 +279,7 @@
 
 	rk3308 {
 		rk3308_reset: rk3308-reset {
-			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -318,24 +323,6 @@
 	status = "disabled";
 };
 
-&spi4 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi4m0_cs1 &spi4m0_pins>;
-
-	spi_codec: spi-codec@1 {
-		compatible ="rockchip,spi-codec";
-		reg = <1>;
-		spi-lsb-first;
-		spi-max-frequency = <5000000>;
-		#sound-dai-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk3308_reset>;
-		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-};
-
 &uart9 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -368,7 +355,6 @@
 };
 
 &usbdp_phy1 {
-	maximum-speed = "high-speed";
 	rockchip,dp-lane-mux = <3 2 1 0>;
 	status = "okay";
 };
@@ -378,6 +364,7 @@
 };
 
 &usbdp_phy1_u3 {
+	maximum-speed = "high-speed";
 	status = "okay";
 };
 

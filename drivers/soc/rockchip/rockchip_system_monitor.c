@@ -4,6 +4,7 @@
  * Author: Finley Xiao <finley.xiao@rock-chips.com>
  */
 
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
@@ -23,7 +24,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/reboot.h>
-#include <linux/rockchip/rockchip_sip.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/thermal.h>
@@ -246,6 +246,34 @@ static struct video_info *rockchip_parse_video_info(const char *buf)
 	return video_info;
 }
 
+static struct video_info *rockchip_find_video_info(const char *buf)
+{
+	struct video_info *info, *video_info;
+
+	video_info = rockchip_parse_video_info(buf);
+
+	if (!video_info)
+		return NULL;
+
+	mutex_lock(&video_info_mutex);
+	list_for_each_entry(info, &video_info_list, node) {
+		if (info->width == video_info->width &&
+		    info->height == video_info->height &&
+		    info->ishevc == video_info->ishevc &&
+		    info->videoFramerate == video_info->videoFramerate &&
+		    info->streamBitrate == video_info->streamBitrate) {
+			mutex_unlock(&video_info_mutex);
+			kfree(video_info);
+			return info;
+		}
+	}
+
+	mutex_unlock(&video_info_mutex);
+	kfree(video_info);
+
+	return NULL;
+}
+
 static void rockchip_add_video_info(struct video_info *video_info)
 {
 	if (video_info) {
@@ -257,25 +285,12 @@ static void rockchip_add_video_info(struct video_info *video_info)
 
 static void rockchip_del_video_info(struct video_info *video_info)
 {
-	struct video_info *info, *tmp;
-
-	if (!video_info)
-		return;
-
-	mutex_lock(&video_info_mutex);
-	list_for_each_entry_safe(info, tmp, &video_info_list, node) {
-		if (info->width == video_info->width &&
-		    info->height == video_info->height &&
-		    info->ishevc == video_info->ishevc &&
-		    info->videoFramerate == video_info->videoFramerate &&
-		    info->streamBitrate == video_info->streamBitrate) {
-			list_del(&info->node);
-			kfree(info);
-			break;
-		}
+	if (video_info) {
+		mutex_lock(&video_info_mutex);
+		list_del(&video_info->node);
+		mutex_unlock(&video_info_mutex);
+		kfree(video_info);
 	}
-	kfree(video_info);
-	mutex_unlock(&video_info_mutex);
 }
 
 static void rockchip_update_video_info(void)
@@ -323,7 +338,7 @@ void rockchip_update_system_status(const char *buf)
 	switch (buf[0]) {
 	case '0':
 		/* clear video flag */
-		video_info = rockchip_parse_video_info(buf);
+		video_info = rockchip_find_video_info(buf);
 		if (video_info) {
 			rockchip_del_video_info(video_info);
 			rockchip_update_video_info();
@@ -513,10 +528,10 @@ static int rockchip_init_temp_opp_table(struct monitor_dev_info *info)
 		return -ENOMEM;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (IS_ERR(opp_table)) {
+	if (!opp_table) {
 		kfree(info->opp_table);
 		info->opp_table = NULL;
-		return PTR_ERR(opp_table);
+		return -ENOMEM;
 	}
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
@@ -775,21 +790,17 @@ EXPORT_SYMBOL(rockchip_monitor_cpu_low_temp_adjust);
 int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high)
 {
+	if (!info->high_limit)
+		return 0;
+
 	if (!freq_qos_request_active(&info->max_temp_freq_req))
 		return 0;
 
 	if (info->high_limit_table) {
-		if (info->high_limit)
-			freq_qos_update_request(&info->max_temp_freq_req,
-						info->high_limit / 1000);
-		else
-			freq_qos_update_request(&info->max_temp_freq_req,
-						FREQ_QOS_MAX_DEFAULT_VALUE);
+		freq_qos_update_request(&info->max_temp_freq_req,
+					info->high_limit / 1000);
 		return 0;
 	}
-
-	if (!info->high_limit)
-		return 0;
 
 	if (is_high)
 		freq_qos_update_request(&info->max_temp_freq_req,
@@ -828,18 +839,14 @@ int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 	if (!dev_pm_qos_request_active(&info->dev_max_freq_req))
 		return 0;
 
-	if (info->high_limit_table) {
-		if (info->high_limit)
-			dev_pm_qos_update_request(&info->dev_max_freq_req,
-						  info->high_limit / 1000);
-		else
-			dev_pm_qos_update_request(&info->dev_max_freq_req,
-						  PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
-		return 0;
-	}
-
 	if (!info->high_limit)
 		return 0;
+
+	if (info->high_limit_table) {
+		dev_pm_qos_update_request(&info->dev_max_freq_req,
+					  info->high_limit / 1000);
+		return 0;
+	}
 
 	if (is_high)
 		dev_pm_qos_update_request(&info->dev_max_freq_req,
@@ -861,8 +868,8 @@ static int rockchip_adjust_low_temp_opp_volt(struct monitor_dev_info *info,
 	int i = 0;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (IS_ERR(opp_table))
-		return PTR_ERR(opp_table);
+	if (!opp_table)
+		return -ENOMEM;
 
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
@@ -913,7 +920,6 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 				     bool is_low)
 {
 	struct monitor_dev_profile *devp = info->devp;
-	struct arm_smccc_res res;
 	int ret = 0;
 
 	dev_dbg(info->dev, "low_temp %d\n", is_low);
@@ -928,17 +934,6 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 
 	if (devp->update_volt)
 		devp->update_volt(info);
-
-	if (devp->opp_info && devp->opp_info->pvtpll_low_temp) {
-		res = sip_smc_pvtpll_config(PVTPLL_LOW_TEMP,
-					    devp->opp_info->pvtpll_clk_id,
-					    is_low, 0, 0, 0, 0);
-		if (res.a0)
-			dev_err(info->dev,
-				"%s: error cfg id=%u low temp %d (%d)\n",
-				__func__, devp->opp_info->pvtpll_clk_id,
-				is_low, (int)res.a0);
-	}
 }
 
 static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
@@ -1033,8 +1028,6 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 	int ret, temp;
 
 	if (!info->opp_table)
-		return;
-	if (!system_monitor->tz)
 		return;
 
 	/*
@@ -1343,15 +1336,6 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 		rockchip_set_intermediate_rate(dev, opp_info, info->clk,
 					       old_rate, new_rate,
 					       true, is_set_clk);
-
-		if (old_volt > new_volt) {
-			ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
-			if (ret) {
-				dev_err(dev, "%s: failed to set volt: %lu\n",
-					__func__, new_volt);
-				goto restore_voltage;
-			}
-		}
 		if (info->regulator_count > 1) {
 			ret = regulator_set_voltage(mem_reg, new_mem_volt,
 						    INT_MAX);
@@ -1361,13 +1345,11 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 				goto restore_voltage;
 			}
 		}
-		if (old_volt <= new_volt) {
-			ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
-			if (ret) {
-				dev_err(dev, "%s: failed to set volt: %lu\n",
-					__func__, new_volt);
-				goto restore_voltage;
-			}
+		ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
+		if (ret) {
+			dev_err(dev, "%s: failed to set volt: %lu\n",
+				__func__, new_volt);
+			goto restore_voltage;
 		}
 		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 		if (is_set_clk && clk_set_rate(info->clk, new_rate)) {
@@ -1412,12 +1394,9 @@ restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_volt, &target_rm);
 	rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 restore_voltage:
-	if (old_volt <= new_volt)
-		regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
 	if (info->regulator_count > 1)
 		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);
-	if (old_volt > new_volt)
-		regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
+	regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
 disable_clk:
 	rockchip_monitor_disable_opp_clk(dev, opp_info);
 unlock:

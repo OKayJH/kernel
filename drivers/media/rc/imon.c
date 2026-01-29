@@ -646,14 +646,15 @@ static int send_packet(struct imon_context *ictx)
 		pr_err_ratelimited("error submitting urb(%d)\n", retval);
 	} else {
 		/* Wait for transmission to complete (or abort) */
+		mutex_unlock(&ictx->lock);
 		retval = wait_for_completion_interruptible(
 				&ictx->tx.finished);
 		if (retval) {
 			usb_kill_urb(ictx->tx_urb);
 			pr_err_ratelimited("task interrupted\n");
 		}
+		mutex_lock(&ictx->lock);
 
-		ictx->tx.busy = false;
 		retval = ictx->tx.status;
 		if (retval)
 			pr_err_ratelimited("packet tx failed (%d)\n", retval);
@@ -957,8 +958,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 	if (ictx->disconnected)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&ictx->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&ictx->lock);
 
 	if (!ictx->dev_present_intf0) {
 		pr_err_ratelimited("no iMON device present\n");
@@ -2427,12 +2427,6 @@ static int imon_probe(struct usb_interface *interface,
 	first_if = usb_ifnum_to_if(usbdev, 0);
 	if (!first_if) {
 		ret = -ENODEV;
-		goto fail;
-	}
-
-	if (first_if->dev.driver != interface->dev.driver) {
-		dev_err(&interface->dev, "inconsistent driver matching\n");
-		ret = -EINVAL;
 		goto fail;
 	}
 

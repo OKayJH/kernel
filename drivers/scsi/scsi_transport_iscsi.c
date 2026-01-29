@@ -1674,13 +1674,6 @@ static const char *iscsi_session_state_name(int state)
 	return name;
 }
 
-static char *iscsi_session_target_state_name[] = {
-	[ISCSI_SESSION_TARGET_UNBOUND]   = "UNBOUND",
-	[ISCSI_SESSION_TARGET_ALLOCATED] = "ALLOCATED",
-	[ISCSI_SESSION_TARGET_SCANNED]   = "SCANNED",
-	[ISCSI_SESSION_TARGET_UNBINDING] = "UNBINDING",
-};
-
 int iscsi_session_chkready(struct iscsi_cls_session *session)
 {
 	unsigned long flags;
@@ -1812,13 +1805,9 @@ static int iscsi_user_scan_session(struct device *dev, void *data)
 		if ((scan_data->channel == SCAN_WILD_CARD ||
 		     scan_data->channel == 0) &&
 		    (scan_data->id == SCAN_WILD_CARD ||
-		     scan_data->id == id)) {
+		     scan_data->id == id))
 			scsi_scan_target(&session->dev, 0, id,
 					 scan_data->lun, scan_data->rescan);
-			spin_lock_irqsave(&session->lock, flags);
-			session->target_state = ISCSI_SESSION_TARGET_SCANNED;
-			spin_unlock_irqrestore(&session->lock, flags);
-		}
 	}
 
 user_scan_exit:
@@ -2007,41 +1996,31 @@ static void __iscsi_unbind_session(struct work_struct *work)
 	struct iscsi_cls_host *ihost = shost->shost_data;
 	unsigned long flags;
 	unsigned int target_id;
-	bool remove_target = true;
 
 	ISCSI_DBG_TRANS_SESSION(session, "Unbinding session\n");
 
 	/* Prevent new scans and make sure scanning is not in progress */
 	mutex_lock(&ihost->mutex);
 	spin_lock_irqsave(&session->lock, flags);
-	if (session->target_state == ISCSI_SESSION_TARGET_ALLOCATED) {
-		remove_target = false;
-	} else if (session->target_state != ISCSI_SESSION_TARGET_SCANNED) {
+	if (session->target_id == ISCSI_MAX_TARGET) {
 		spin_unlock_irqrestore(&session->lock, flags);
 		mutex_unlock(&ihost->mutex);
-		ISCSI_DBG_TRANS_SESSION(session,
-			"Skipping target unbinding: Session is unbound/unbinding.\n");
-		return;
+		goto unbind_session_exit;
 	}
 
-	session->target_state = ISCSI_SESSION_TARGET_UNBINDING;
 	target_id = session->target_id;
 	session->target_id = ISCSI_MAX_TARGET;
 	spin_unlock_irqrestore(&session->lock, flags);
 	mutex_unlock(&ihost->mutex);
 
-	if (remove_target)
-		scsi_remove_target(&session->dev);
+	scsi_remove_target(&session->dev);
 
 	if (session->ida_used)
 		ida_simple_remove(&iscsi_sess_ida, target_id);
 
+unbind_session_exit:
 	iscsi_session_event(session, ISCSI_KEVENT_UNBIND_SESSION);
 	ISCSI_DBG_TRANS_SESSION(session, "Completed target removal\n");
-
-	spin_lock_irqsave(&session->lock, flags);
-	session->target_state = ISCSI_SESSION_TARGET_UNBOUND;
-	spin_unlock_irqrestore(&session->lock, flags);
 }
 
 static void __iscsi_destroy_session(struct work_struct *work)
@@ -2110,9 +2089,6 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 		session->ida_used = true;
 	} else
 		session->target_id = target_id;
-	spin_lock_irqsave(&session->lock, flags);
-	session->target_state = ISCSI_SESSION_TARGET_ALLOCATED;
-	spin_unlock_irqrestore(&session->lock, flags);
 
 	dev_set_name(&session->dev, "session%u", session->sid);
 	err = device_add(&session->dev);
@@ -2991,24 +2967,19 @@ iscsi_if_destroy_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev
 }
 
 static int
-iscsi_if_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev, u32 rlen)
+iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 {
 	char *data = (char*)ev + sizeof(*ev);
 	struct iscsi_cls_conn *conn;
 	struct iscsi_cls_session *session;
 	int err = 0, value = 0, state;
 
-	if (ev->u.set_param.len > rlen ||
-	    ev->u.set_param.len > PAGE_SIZE)
+	if (ev->u.set_param.len > PAGE_SIZE)
 		return -EINVAL;
 
 	session = iscsi_session_lookup(ev->u.set_param.sid);
 	conn = iscsi_conn_lookup(ev->u.set_param.sid, ev->u.set_param.cid);
 	if (!conn || !session)
-		return -EINVAL;
-
-	/* data will be regarded as NULL-ended string, do length check */
-	if (strlen(data) > ev->u.set_param.len)
 		return -EINVAL;
 
 	switch (ev->u.set_param.param) {
@@ -3100,7 +3071,7 @@ put_ep:
 
 static int
 iscsi_if_transport_ep(struct iscsi_transport *transport,
-		      struct iscsi_uevent *ev, int msg_type, u32 rlen)
+		      struct iscsi_uevent *ev, int msg_type)
 {
 	struct iscsi_endpoint *ep;
 	int rc = 0;
@@ -3108,10 +3079,7 @@ iscsi_if_transport_ep(struct iscsi_transport *transport,
 	switch (msg_type) {
 	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST:
 	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT:
-		if (rlen < sizeof(struct sockaddr))
-			rc = -EINVAL;
-		else
-			rc = iscsi_if_ep_connect(transport, ev, msg_type);
+		rc = iscsi_if_ep_connect(transport, ev, msg_type);
 		break;
 	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
 		if (!transport->ep_poll)
@@ -3135,14 +3103,11 @@ iscsi_if_transport_ep(struct iscsi_transport *transport,
 
 static int
 iscsi_tgt_dscvr(struct iscsi_transport *transport,
-		struct iscsi_uevent *ev, u32 rlen)
+		struct iscsi_uevent *ev)
 {
 	struct Scsi_Host *shost;
 	struct sockaddr *dst_addr;
 	int err;
-
-	if (rlen < sizeof(*dst_addr))
-		return -EINVAL;
 
 	if (!transport->tgt_dscvr)
 		return -EINVAL;
@@ -3164,7 +3129,7 @@ iscsi_tgt_dscvr(struct iscsi_transport *transport,
 
 static int
 iscsi_set_host_param(struct iscsi_transport *transport,
-		     struct iscsi_uevent *ev, u32 rlen)
+		     struct iscsi_uevent *ev)
 {
 	char *data = (char*)ev + sizeof(*ev);
 	struct Scsi_Host *shost;
@@ -3173,8 +3138,7 @@ iscsi_set_host_param(struct iscsi_transport *transport,
 	if (!transport->set_host_param)
 		return -ENOSYS;
 
-	if (ev->u.set_host_param.len > rlen ||
-	    ev->u.set_host_param.len > PAGE_SIZE)
+	if (ev->u.set_host_param.len > PAGE_SIZE)
 		return -EINVAL;
 
 	shost = scsi_host_lookup(ev->u.set_host_param.host_no);
@@ -3184,10 +3148,6 @@ iscsi_set_host_param(struct iscsi_transport *transport,
 		return -ENODEV;
 	}
 
-	/* see similar check in iscsi_if_set_param() */
-	if (strlen(data) > ev->u.set_host_param.len)
-		return -EINVAL;
-
 	err = transport->set_host_param(shost, ev->u.set_host_param.param,
 					data, ev->u.set_host_param.len);
 	scsi_host_put(shost);
@@ -3195,14 +3155,11 @@ iscsi_set_host_param(struct iscsi_transport *transport,
 }
 
 static int
-iscsi_set_path(struct iscsi_transport *transport, struct iscsi_uevent *ev, u32 rlen)
+iscsi_set_path(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 {
 	struct Scsi_Host *shost;
 	struct iscsi_path *params;
 	int err;
-
-	if (rlen < sizeof(*params))
-		return -EINVAL;
 
 	if (!transport->set_path)
 		return -ENOSYS;
@@ -3263,14 +3220,11 @@ iscsi_set_iface_params(struct iscsi_transport *transport,
 }
 
 static int
-iscsi_send_ping(struct iscsi_transport *transport, struct iscsi_uevent *ev, u32 rlen)
+iscsi_send_ping(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 {
 	struct Scsi_Host *shost;
 	struct sockaddr *dst_addr;
 	int err;
-
-	if (rlen < sizeof(*dst_addr))
-		return -EINVAL;
 
 	if (!transport->send_ping)
 		return -ENOSYS;
@@ -3769,12 +3723,13 @@ exit_host_stats:
 }
 
 static int iscsi_if_transport_conn(struct iscsi_transport *transport,
-				   struct nlmsghdr *nlh, u32 pdu_len)
+				   struct nlmsghdr *nlh)
 {
 	struct iscsi_uevent *ev = nlmsg_data(nlh);
 	struct iscsi_cls_session *session;
 	struct iscsi_cls_conn *conn = NULL;
 	struct iscsi_endpoint *ep;
+	uint32_t pdu_len;
 	int err = 0;
 
 	switch (nlh->nlmsg_type) {
@@ -3854,6 +3809,8 @@ static int iscsi_if_transport_conn(struct iscsi_transport *transport,
 
 		break;
 	case ISCSI_UEVENT_SEND_PDU:
+		pdu_len = nlh->nlmsg_len - sizeof(*nlh) - sizeof(*ev);
+
 		if ((ev->u.send_pdu.hdr_size > pdu_len) ||
 		    (ev->u.send_pdu.data_size > (pdu_len - ev->u.send_pdu.hdr_size))) {
 			err = -EINVAL;
@@ -3883,7 +3840,6 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 	struct iscsi_internal *priv;
 	struct iscsi_cls_session *session;
 	struct iscsi_endpoint *ep = NULL;
-	u32 rlen;
 
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
@@ -3902,13 +3858,6 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		return -EINVAL;
 
 	portid = NETLINK_CB(skb).portid;
-
-	/*
-	 * Even though the remaining payload may not be regarded as nlattr,
-	 * (like address or something else), calculate the remaining length
-	 * here to ease following length checks.
-	 */
-	rlen = nlmsg_attrlen(nlh, sizeof(*ev));
 
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
@@ -3967,7 +3916,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 			err = -EINVAL;
 		break;
 	case ISCSI_UEVENT_SET_PARAM:
-		err = iscsi_if_set_param(transport, ev, rlen);
+		err = iscsi_set_param(transport, ev);
 		break;
 	case ISCSI_UEVENT_CREATE_CONN:
 	case ISCSI_UEVENT_DESTROY_CONN:
@@ -3975,7 +3924,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 	case ISCSI_UEVENT_START_CONN:
 	case ISCSI_UEVENT_BIND_CONN:
 	case ISCSI_UEVENT_SEND_PDU:
-		err = iscsi_if_transport_conn(transport, nlh, rlen);
+		err = iscsi_if_transport_conn(transport, nlh);
 		break;
 	case ISCSI_UEVENT_GET_STATS:
 		err = iscsi_if_get_stats(transport, nlh);
@@ -3984,22 +3933,23 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
 	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
 	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST:
-		err = iscsi_if_transport_ep(transport, ev, nlh->nlmsg_type, rlen);
+		err = iscsi_if_transport_ep(transport, ev, nlh->nlmsg_type);
 		break;
 	case ISCSI_UEVENT_TGT_DSCVR:
-		err = iscsi_tgt_dscvr(transport, ev, rlen);
+		err = iscsi_tgt_dscvr(transport, ev);
 		break;
 	case ISCSI_UEVENT_SET_HOST_PARAM:
-		err = iscsi_set_host_param(transport, ev, rlen);
+		err = iscsi_set_host_param(transport, ev);
 		break;
 	case ISCSI_UEVENT_PATH_UPDATE:
-		err = iscsi_set_path(transport, ev, rlen);
+		err = iscsi_set_path(transport, ev);
 		break;
 	case ISCSI_UEVENT_SET_IFACE_PARAMS:
-		err = iscsi_set_iface_params(transport, ev, rlen);
+		err = iscsi_set_iface_params(transport, ev,
+					     nlmsg_attrlen(nlh, sizeof(*ev)));
 		break;
 	case ISCSI_UEVENT_PING:
-		err = iscsi_send_ping(transport, ev, rlen);
+		err = iscsi_send_ping(transport, ev);
 		break;
 	case ISCSI_UEVENT_GET_CHAP:
 		err = iscsi_get_chap(transport, nlh);
@@ -4008,10 +3958,13 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		err = iscsi_delete_chap(transport, ev);
 		break;
 	case ISCSI_UEVENT_SET_FLASHNODE_PARAMS:
-		err = iscsi_set_flashnode_param(transport, ev, rlen);
+		err = iscsi_set_flashnode_param(transport, ev,
+						nlmsg_attrlen(nlh,
+							      sizeof(*ev)));
 		break;
 	case ISCSI_UEVENT_NEW_FLASHNODE:
-		err = iscsi_new_flashnode(transport, ev, rlen);
+		err = iscsi_new_flashnode(transport, ev,
+					  nlmsg_attrlen(nlh, sizeof(*ev)));
 		break;
 	case ISCSI_UEVENT_DEL_FLASHNODE:
 		err = iscsi_del_flashnode(transport, ev);
@@ -4026,7 +3979,8 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		err = iscsi_logout_flashnode_sid(transport, ev);
 		break;
 	case ISCSI_UEVENT_SET_CHAP:
-		err = iscsi_set_chap(transport, ev, rlen);
+		err = iscsi_set_chap(transport, ev,
+				     nlmsg_attrlen(nlh, sizeof(*ev)));
 		break;
 	case ISCSI_UEVENT_GET_HOST_STATS:
 		err = iscsi_get_host_stats(transport, nlh);
@@ -4390,19 +4344,6 @@ iscsi_session_attr(discovery_parent_idx, ISCSI_PARAM_DISCOVERY_PARENT_IDX, 0);
 iscsi_session_attr(discovery_parent_type, ISCSI_PARAM_DISCOVERY_PARENT_TYPE, 0);
 
 static ssize_t
-show_priv_session_target_state(struct device *dev, struct device_attribute *attr,
-			char *buf)
-{
-	struct iscsi_cls_session *session = iscsi_dev_to_session(dev->parent);
-
-	return sysfs_emit(buf, "%s\n",
-			iscsi_session_target_state_name[session->target_state]);
-}
-
-static ISCSI_CLASS_ATTR(priv_sess, target_state, S_IRUGO,
-			show_priv_session_target_state, NULL);
-
-static ssize_t
 show_priv_session_state(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
@@ -4504,7 +4445,6 @@ static struct attribute *iscsi_session_attrs[] = {
 	&dev_attr_sess_boot_target.attr,
 	&dev_attr_priv_sess_recovery_tmo.attr,
 	&dev_attr_priv_sess_state.attr,
-	&dev_attr_priv_sess_target_state.attr,
 	&dev_attr_priv_sess_creator.attr,
 	&dev_attr_sess_chap_out_idx.attr,
 	&dev_attr_sess_chap_in_idx.attr,
@@ -4617,8 +4557,6 @@ static umode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_priv_sess_recovery_tmo.attr)
 		return S_IRUGO | S_IWUSR;
 	else if (attr == &dev_attr_priv_sess_state.attr)
-		return S_IRUGO;
-	else if (attr == &dev_attr_priv_sess_target_state.attr)
 		return S_IRUGO;
 	else if (attr == &dev_attr_priv_sess_creator.attr)
 		return S_IRUGO;

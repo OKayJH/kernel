@@ -22,8 +22,6 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
-#include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include "../core/block.h"
 #include "../core/card.h"
 #include "../core/core.h"
@@ -133,7 +131,7 @@ static int rk_emmc_wait_busy(void)
 /*
  * Transfer a single sector of kernel addressable data
  */
-int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int write)
+int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz, int write)
 {
 	int ret = 0;
 	enum emmc_area_type areatype;
@@ -152,18 +150,11 @@ int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int wri
 	mrq.data = &data;
 	mrq.stop = &stop;
 
-	sg_init_one(&sg, buffer, datasz);
+	sg_init_one(&sg, buffer, blksz);
 
-	rk_emmc_prepare_mrq(&mrq, &sg, 1, addr, datasz / BLKSZ, BLKSZ, write);
+	rk_emmc_prepare_mrq(&mrq, &sg, 1, addr, 1, blksz, write);
 
-	pm_runtime_get_sync(&this_card->dev);
 	mmc_claim_host(this_card->host);
-
-	if (this_card->ext_csd.cmdq_en) {
-		ret = mmc_cmdq_disable(this_card);
-		if (ret)
-			goto exit;
-	}
 
 	areatype = (enum emmc_area_type)this_card->ext_csd.part_config
 		    & EXT_CSD_PART_CONFIG_ACC_MASK;
@@ -195,12 +186,7 @@ int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int wri
 	}
 
 exit:
-	if (this_card->reenable_cmdq && !this_card->ext_csd.cmdq_en)
-		mmc_cmdq_enable(this_card);
-
 	mmc_release_host(this_card->host);
-	pm_runtime_put(&this_card->dev);
-
 	return ret;
 }
 EXPORT_SYMBOL(rk_emmc_transfer);

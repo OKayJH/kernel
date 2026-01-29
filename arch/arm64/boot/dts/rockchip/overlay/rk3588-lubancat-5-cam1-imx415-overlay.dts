@@ -23,6 +23,13 @@
 		target = <&dcphy1_imx415>;
 		__overlay__ {
 			status = "okay";
+			rockchip,camera-module-sync-mode = "slave";
+			pwm-names = "xvs", "xhs";
+			/* 4K@30: VMAX=2250 => XVS period ~= XHS period * 2250 */
+			pwms = <&pwm14 0 33333750 PWM_POLARITY_INVERTED>,
+			       <&pwm15 0 14815 PWM_POLARITY_INVERTED>;
+			rockchip,xvs-duty-ns = <50000>;
+			rockchip,xhs-duty-ns = <500>;
 		};
 	};
 

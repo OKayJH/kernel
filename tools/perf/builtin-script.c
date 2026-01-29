@@ -295,7 +295,8 @@ static inline struct evsel_script *evsel_script(struct evsel *evsel)
 	return (struct evsel_script *)evsel->priv;
 }
 
-static struct evsel_script *evsel_script__new(struct evsel *evsel, struct perf_data *data)
+static struct evsel_script *perf_evsel_script__new(struct evsel *evsel,
+							struct perf_data *data)
 {
 	struct evsel_script *es = zalloc(sizeof(*es));
 
@@ -315,7 +316,7 @@ out_free:
 	return NULL;
 }
 
-static void evsel_script__delete(struct evsel_script *es)
+static void perf_evsel_script__delete(struct evsel_script *es)
 {
 	zfree(&es->filename);
 	fclose(es->fp);
@@ -323,7 +324,7 @@ static void evsel_script__delete(struct evsel_script *es)
 	free(es);
 }
 
-static int evsel_script__fprintf(struct evsel_script *es, FILE *fp)
+static int perf_evsel_script__fprintf(struct evsel_script *es, FILE *fp)
 {
 	struct stat st;
 
@@ -2146,9 +2147,6 @@ out_put:
 	return 0;
 }
 
-// Used when scr->per_event_dump is not set
-static struct evsel_script es_stdout;
-
 static int process_attr(struct perf_tool *tool, union perf_event *event,
 			struct evlist **pevlist)
 {
@@ -2157,6 +2155,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	struct evsel *evsel, *pos;
 	u64 sample_type;
 	int err;
+	static struct evsel_script *es;
 
 	err = perf_event__process_attr(tool, event, pevlist);
 	if (err)
@@ -2166,13 +2165,15 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	evsel = evlist__last(*pevlist);
 
 	if (!evsel->priv) {
-		if (scr->per_event_dump) { 
-			evsel->priv = evsel_script__new(evsel, scr->session->data);
-			if (!evsel->priv)
+		if (scr->per_event_dump) {
+			evsel->priv = perf_evsel_script__new(evsel,
+						scr->session->data);
+		} else {
+			es = zalloc(sizeof(*es));
+			if (!es)
 				return -ENOMEM;
-		} else { // Replicate what is done in perf_script__setup_per_event_dump()
-			es_stdout.fp = stdout;
-			evsel->priv = &es_stdout;
+			es->fp = stdout;
+			evsel->priv = es;
 		}
 	}
 
@@ -2421,7 +2422,7 @@ static void perf_script__fclose_per_event_dump(struct perf_script *script)
 	evlist__for_each_entry(evlist, evsel) {
 		if (!evsel->priv)
 			break;
-		evsel_script__delete(evsel->priv);
+		perf_evsel_script__delete(evsel->priv);
 		evsel->priv = NULL;
 	}
 }
@@ -2441,7 +2442,7 @@ static int perf_script__fopen_per_event_dump(struct perf_script *script)
 		if (evsel->priv != NULL)
 			continue;
 
-		evsel->priv = evsel_script__new(evsel, script->session->data);
+		evsel->priv = perf_evsel_script__new(evsel, script->session->data);
 		if (evsel->priv == NULL)
 			goto out_err_fclose;
 	}
@@ -2456,6 +2457,7 @@ out_err_fclose:
 static int perf_script__setup_per_event_dump(struct perf_script *script)
 {
 	struct evsel *evsel;
+	static struct evsel_script es_stdout;
 
 	if (script->per_event_dump)
 		return perf_script__fopen_per_event_dump(script);
@@ -2475,8 +2477,8 @@ static void perf_script__exit_per_event_dump_stats(struct perf_script *script)
 	evlist__for_each_entry(script->session->evlist, evsel) {
 		struct evsel_script *es = evsel->priv;
 
-		evsel_script__fprintf(es, stdout);
-		evsel_script__delete(es);
+		perf_evsel_script__fprintf(es, stdout);
+		perf_evsel_script__delete(es);
 		evsel->priv = NULL;
 	}
 }

@@ -6,6 +6,10 @@
 	status = "okay";
 };
 
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
 &csi2_dphy5 {
 	status = "okay";
 };

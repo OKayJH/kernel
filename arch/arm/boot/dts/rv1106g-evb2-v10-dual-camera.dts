@@ -149,7 +149,7 @@
 	};
 
 	sc301iot: sc301iot@32 {
-		compatible = "smartsens,sc301iot";
+		compatible = "smartsens,SC301IOT";
 		status = "okay";
 		reg = <0x32>;
 		clocks = <&cru MCLK_REF_MIPI0>;
@@ -402,6 +402,8 @@
 };
 
 &sfc {
+	assigned-clocks = <&cru SCLK_SFC>;
+	assigned-clock-rates = <125000000>;
 	status = "okay";
 
 	flash@0 {
@@ -414,5 +416,5 @@
 };
 
 &usbdrd_dwc3 {
-	dr_mode = "otg";
+	dr_mode = "peripheral";
 };

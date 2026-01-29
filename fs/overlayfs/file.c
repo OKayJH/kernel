@@ -21,6 +21,7 @@ struct ovl_aio_req {
 	struct kiocb iocb;
 	refcount_t ref;
 	struct kiocb *orig_iocb;
+	struct fd fd;
 };
 
 static struct kmem_cache *ovl_aio_request_cachep;
@@ -246,7 +247,7 @@ static void ovl_file_accessed(struct file *file)
 static inline void ovl_aio_put(struct ovl_aio_req *aio_req)
 {
 	if (refcount_dec_and_test(&aio_req->ref)) {
-		fput(aio_req->iocb.ki_filp);
+		fdput(aio_req->fd);
 		kmem_cache_free(ovl_aio_request_cachep, aio_req);
 	}
 }
@@ -313,9 +314,10 @@ static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		if (!aio_req)
 			goto out;
 
+		aio_req->fd = real;
 		real.flags = 0;
 		aio_req->orig_iocb = iocb;
-		kiocb_clone(&aio_req->iocb, iocb, get_file(real.file));
+		kiocb_clone(&aio_req->iocb, iocb, real.file);
 		aio_req->iocb.ki_complete = ovl_aio_rw_complete;
 		refcount_set(&aio_req->ref, 2);
 		ret = vfs_iocb_iter_read(real.file, &aio_req->iocb, iter);
@@ -385,9 +387,10 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		/* Pacify lockdep, same trick as done in aio_write() */
 		__sb_writers_release(file_inode(real.file)->i_sb,
 				     SB_FREEZE_WRITE);
+		aio_req->fd = real;
 		real.flags = 0;
 		aio_req->orig_iocb = iocb;
-		kiocb_clone(&aio_req->iocb, iocb, get_file(real.file));
+		kiocb_clone(&aio_req->iocb, iocb, real.file);
 		aio_req->iocb.ki_flags = ifl;
 		aio_req->iocb.ki_complete = ovl_aio_rw_complete;
 		refcount_set(&aio_req->ref, 2);
@@ -516,16 +519,9 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 	const struct cred *old_cred;
 	int ret;
 
-	inode_lock(inode);
-	/* Update mode */
-	ovl_copyattr(ovl_inode_real(inode), inode);
-	ret = file_remove_privs(file);
-	if (ret)
-		goto out_unlock;
-
 	ret = ovl_real_fdget(file, &real);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	ret = vfs_fallocate(real.file, mode, offset, len);
@@ -535,9 +531,6 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 	ovl_copyattr(ovl_inode_real(inode), inode);
 
 	fdput(real);
-
-out_unlock:
-	inode_unlock(inode);
 
 	return ret;
 }
@@ -682,23 +675,14 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 	const struct cred *old_cred;
 	loff_t ret;
 
-	inode_lock(inode_out);
-	if (op != OVL_DEDUPE) {
-		/* Update mode */
-		ovl_copyattr(ovl_inode_real(inode_out), inode_out);
-		ret = file_remove_privs(file_out);
-		if (ret)
-			goto out_unlock;
-	}
-
 	ret = ovl_real_fdget(file_out, &real_out);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	ret = ovl_real_fdget(file_in, &real_in);
 	if (ret) {
 		fdput(real_out);
-		goto out_unlock;
+		return ret;
 	}
 
 	old_cred = ovl_override_creds(file_inode(file_out)->i_sb);
@@ -726,9 +710,6 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 
 	fdput(real_in);
 	fdput(real_out);
-
-out_unlock:
-	inode_unlock(inode_out);
 
 	return ret;
 }

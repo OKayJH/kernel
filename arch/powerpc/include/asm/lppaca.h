@@ -45,7 +45,6 @@
 #include <asm/types.h>
 #include <asm/mmu.h>
 #include <asm/firmware.h>
-#include <asm/paca.h>
 
 /*
  * The lppaca is the "virtual processor area" registered with the hypervisor,
@@ -124,22 +123,12 @@ struct lppaca {
  */
 #define LPPACA_OLD_SHARED_PROC		2
 
-#ifdef CONFIG_PPC_PSERIES
-/*
- * All CPUs should have the same shared proc value, so directly access the PACA
- * to avoid false positives from DEBUG_PREEMPT.
- */
-static inline bool lppaca_shared_proc(void)
+static inline bool lppaca_shared_proc(struct lppaca *l)
 {
-	struct lppaca *l = local_paca->lppaca_ptr;
-
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return false;
 	return !!(l->__old_status & LPPACA_OLD_SHARED_PROC);
 }
-
-#define get_lppaca()	(get_paca()->lppaca_ptr)
-#endif
 
 /*
  * SLB shadow buffer structure as defined in the PAPR.  The save_area

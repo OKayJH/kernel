@@ -1,2 +1,2 @@
-# Host MHI stack
-obj-y += host/
+# core layer
+obj-y += core/

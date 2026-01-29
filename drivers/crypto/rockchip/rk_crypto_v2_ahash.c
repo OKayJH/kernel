@@ -58,10 +58,6 @@ static void rk_hash_reset(struct rk_crypto_dev *rk_dev)
 			pool_timeout_us);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_HASH_CTL, 0xffff0000);
-
-	/* clear dma int status */
-	tmp = CRYPTO_READ(rk_dev, CRYPTO_DMA_INT_ST);
-	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_INT_ST, tmp);
 }
 
 static int rk_crypto_irq_handle(int irq, void *dev_id)
@@ -138,6 +134,11 @@ static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
 		base->complete(base, err);
 }
 
+static inline void clear_hash_out_reg(struct rk_crypto_dev *rk_dev)
+{
+	rk_crypto_clear_regs(rk_dev, CRYPTO_HASH_DOUT_0, 16);
+}
+
 static int write_key_reg(struct rk_crypto_dev *rk_dev, const u8 *key,
 			  u32 key_len)
 {
@@ -154,6 +155,8 @@ static int rk_hw_hash_init(struct rk_crypto_dev *rk_dev, u32 algo, u32 type)
 		goto exit;
 
 	rk_hash_reset(rk_dev);
+
+	clear_hash_out_reg(rk_dev);
 
 	reg_ctrl = hash_algo2bc[algo] | CRYPTO_HW_PAD_ENABLE;
 

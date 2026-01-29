@@ -5,19 +5,6 @@
 
 if VIDEO_V4L2
 
-config VIDEO_CAM_SLEEP_WAKEUP
-	tristate "Enable sensor sleep wake up function"
-	depends on ARCH_ROCKCHIP
-	help
-	  Support for sensor sleep and wake up.
-
-config VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
-	bool "Enable camera Thunderboot setup function"
-	depends on ROCKCHIP_THUNDER_BOOT
-	default y
-	help
-	  Say y if you need camera Thunderboot setup functions.
-
 comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
 
@@ -364,30 +351,17 @@ config VIDEO_IT6616
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	select V4L2_FWNODE
-	select VIDEO_ROCKCHIP_HDMIRX_CLASS
 	help
 	  Support for the ITE IT6616 series HDMI to MIPI CSI-2 bridge.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called IT6616.
 
-config VIDEO_LT6911C
-	tristate "Lontium LT6911UXC decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
-	select HDMI
-	select V4L2_FWNODE
-	help
-	  Support for the Lontium LT6911C series HDMI to MIPI CSI-2 bridge.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called lt6911c.
-
 config VIDEO_LT6911UXC
 	tristate "Lontium LT6911UXC decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	select V4L2_FWNODE
-	select VIDEO_ROCKCHIP_HDMIRX_CLASS
 	help
 	  Support for the Lontium LT6911UXC series HDMI to MIPI CSI-2 bridge.
 
@@ -437,17 +411,6 @@ config VIDEO_LT8619C
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lt8619c.
-
-config VIDEO_LT8668SX
-	tristate "Lontium LT8668SX decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
-	select HDMI
-	select V4L2_FWNODE
-	help
-	  Support for the Lontium LT8668SX series type-c/hdmi to MIPI CSI-2 bridge.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called lt8668sx.
 
 config VIDEO_ML86V7667
 	tristate "OKI ML86V7667 video decoder"
@@ -698,20 +661,6 @@ config VIDEO_MAX96722
 	  To compile this driver as a module, choose M here: the
 	  module will be called max96722.
 
-config VIDEO_MAX96756
-	tristate "Maxim MAX96756 GMSL1/2 CSI display deserializer support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This driver supports the Maxim MAX96756 GMSL1/2 CSI display deserializer.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called max96756.
-
-source "drivers/media/i2c/maxim/Kconfig"
-source "drivers/media/i2c/rkserdes/Kconfig"
-
 comment "Video and audio decoders"
 
 config VIDEO_SAA717X
@@ -956,11 +905,6 @@ config VIDEO_RK_IRCUT
 	  To compile this driver as a module, choose M here: the
 	  module will be called rk_ircut.
 
-config VIDEO_LIGHT_CTL
-	tristate "video light ctrl support"
-	help
-	  This driver supports video light ctrl.
-
 endmenu
 
 #
@@ -987,18 +931,6 @@ config VIDEO_AR0230
 	  To compile this driver as a module, choose M here: the
 	  module will be called ar0230.
 
-config VIDEO_AR0544
-	tristate "Onsemi AR0544 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the Onsemi
-	  AR0544 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called AR0544.
-
 config VIDEO_AR0822
 	tristate "Onsemi AR0822 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -1011,18 +943,6 @@ config VIDEO_AR0822
 	  To compile this driver as a module, choose M here: the
 	  module will be called ar0822.
 
-config VIDEO_AR2020
-	tristate "Onsemi AR2020 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the Onsemi
-	  AR2020 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ar2020.
-
 config VIDEO_GC02M2
 	tristate "GalaxyCore GC02M2 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -1033,30 +953,6 @@ config VIDEO_GC02M2
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc02m2.
-
-config VIDEO_GC0403
-	tristate "GalaxyCore GC0403 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  Support for the GalaxyCore GC0403 sensor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gc0403.
-
-config VIDEO_GC05A2
-	tristate "GalaxyCore GC05A2 sensor support"
-	depends on I2C && VIDEO_DEV
-	depends on MEDIA_CAMERA_SUPPORT
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  Support for the GalaxyCore GC05A2 sensor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gc05a2.
 
 config VIDEO_GC08A3
 	tristate "GalaxyCore GC08A3 sensor support"
@@ -1124,28 +1020,6 @@ config VIDEO_GC2145
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc2145.
 
-config VIDEO_GC2355
-	tristate "GalaxyCore GC2355 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  Support for the GalaxyCore GC2355 sensor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gc2355.
-
-config VIDEO_GC2375H
-	tristate "GalaxyCore GC2375H sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  Support for the GalaxyCore GC2375H sensor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gc2375h.
-
 config VIDEO_GC2385
 	tristate "GalaxyCore GC2385 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -1211,17 +1085,6 @@ config VIDEO_GC4C33
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc4C33.
-
-config VIDEO_GC5024
-	tristate "GalaxyCore GC5024 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  Support for the GalaxyCore GC5024 sensor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gc5024.
 
 config VIDEO_GC5025
 	tristate "GalaxyCore GC5025 sensor support"
@@ -1516,42 +1379,6 @@ config VIDEO_IMX586
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx586.
 
-config VIDEO_JX_F37
-	tristate "Soi JX_F37 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  This is a Video4Linux2 sensor driver for the Soi
-	  JX_F37 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called jx_f37.
-
-config VIDEO_JX_H62
-	tristate "Soi JX_H62 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  This is a Video4Linux2 sensor driver for the Soi
-	  JX_H62 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called jx_h62.
-
-config VIDEO_JX_H65
-	tristate "Soi JX_H65 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  This is a Video4Linux2 sensor driver for the Soi
-	  JX_H65 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called jx_h65.
-
 config VIDEO_JX_K17
 	tristate "Soi JX_K17 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -1564,24 +1391,6 @@ config VIDEO_JX_K17
 	  To compile this driver as a module, choose M here: the
 	  module will be called jx_k17.
 
-config VIDEO_OG01A10
-	tristate "OmniVision OG01A10 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OG01A10 camera.
-
-config VIDEO_OG02B10
-	tristate "OmniVision OG02B10 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OG02B10 camera.
-
 config VIDEO_OS02G10
 	tristate "OmniVision OS02G10 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -1590,15 +1399,6 @@ config VIDEO_OS02G10
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OS02G10 camera.
-
-config VIDEO_OS02K10
-	tristate "OmniVision OS02K10 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OS02K10 camera.
 
 config VIDEO_OS03B10
 	tristate "OmniVision OS03B10 sensor support"
@@ -1617,24 +1417,6 @@ config VIDEO_OS04A10
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OS04A10 camera.
-
-config VIDEO_OS04D10
-	tristate "OmniVision OS04D10 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OS04D10 camera.
-
-config VIDEO_OS04E10
-	tristate "OmniVision OS04E10 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OS04E10 camera.
 
 config VIDEO_OS05A20
 	tristate "OmniVision OS05A20 sensor support"
@@ -1671,15 +1453,6 @@ config VIDEO_OV02K10
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV02K10 camera.
-
-config VIDEO_OV16885
-	tristate "OmniVision OV16885 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV16885 camera.
 
 config VIDEO_OV16A10
 	tristate "OmniVision OV16A10 sensor support"
@@ -1756,18 +1529,6 @@ config VIDEO_OV2718
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2718.
 
-config VIDEO_OV2735
-	tristate "OmniVision OV2735 sensor support"
-	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV2735 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ov2735.
-
 config VIDEO_OV2740
 	tristate "OmniVision OV2740 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -1781,18 +1542,6 @@ config VIDEO_OV2740
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2740.
-
-config VIDEO_OV2775
-	tristate "OmniVision OV2775 sensor support"
-	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV2775 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ov2775.
 
 config VIDEO_OV4686
 	tristate "OmniVision OV4686 sensor support"
@@ -1990,19 +1739,6 @@ config VIDEO_OV7740
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV7740 VGA camera sensor.
 
-config VIDEO_OV7750
-	tristate "OmniVision OV7750 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV7750 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ov7750.
-
 config VIDEO_OV8856
 	tristate "OmniVision OV8856 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -2055,17 +1791,6 @@ config VIDEO_OV9650
 	  This is a V4L2 sensor driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.
 
-config VIDEO_OV9750
-	tristate "OmniVision OV9750 sensor support"
-	depends on I2C && VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV9750 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ov9750.
-
 config VIDEO_OV12D2Q
 	tristate "OmniVision OV12D2Q sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -2112,26 +1837,6 @@ config VIDEO_VS6624
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vs6624.
-
-config VIDEO_MIS2031
-	tristate "ImageDesign mis2031 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the ImageDesign
-	  MIS2031 camera.
-
-config VIDEO_MIS4001
-	tristate "ImageDesign mis4001 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the ImageDesign
-	  MIS4001 camera.
 
 config VIDEO_MT9M001
 	tristate "mt9m001 support"
@@ -2218,16 +1923,6 @@ config VIDEO_MT9V111
 	  To compile this driver as a module, choose M here: the
 	  module will be called mt9v111.
 
-config VIDEO_PS5458
-	tristate "Prime PS5458 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the Prime
-	  PS5458 camera.
-
 config VIDEO_SC031GS
 	tristate "SmartSens SC031GS sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -2260,16 +1955,6 @@ config VIDEO_SC132GS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sc132gs.
-
-config VIDEO_SC1346
-	tristate "SmartSens SC1346 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC1346 camera.
 
 config VIDEO_SC200AI
 	tristate "SmartSens SC200AI sensor support"
@@ -2331,16 +2016,6 @@ config VIDEO_SC230AI
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC230AI camera.
 
-config VIDEO_SC231HAI
-	tristate "SmartSens SC231HAI sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC231HAI camera.
-
 config VIDEO_SC2310
 	tristate "SmartSens SC2310 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -2361,26 +2036,6 @@ config VIDEO_SC2336
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC2336 camera.
 
-config VIDEO_SC2336P
-	tristate "SmartSens SC2336P sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC2336P camera.
-
-config VIDEO_SC2355
-	tristate "SmartSens SC2355 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  Support for the SmartSens SC2355 sensor.
-	  To compile this driver as a module, choose M here: the
-	  module will be called sc2355.
-
 config VIDEO_SC301IOT
     tristate "SmartSens SC301IOT sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -2400,16 +2055,6 @@ config VIDEO_SC3336
 	help
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC3336 camera.
-
-config VIDEO_SC3336P
-       tristate "SmartSens SC3336P sensor support"
-       depends on I2C && VIDEO_V4L2
-       select MEDIA_CONTROLLER
-       select VIDEO_V4L2_SUBDEV_API
-       select V4L2_FWNODE
-       help
-         This is a Video4Linux2 sensor driver for the SmartSens
-         SC3336P camera.
 
 config VIDEO_SC3338
 	tristate "SmartSens SC3338 sensor support"
@@ -2461,16 +2106,6 @@ config VIDEO_SC430CS
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC430CS camera.
 
-config VIDEO_SC431HAI
-	tristate "SmartSens SC431HAI sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC431HAI camera.
-
 config VIDEO_SC4336
 	tristate "SmartSens SC4336 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -2480,26 +2115,6 @@ config VIDEO_SC4336
 	help
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC4336 camera.
-
-config VIDEO_SC4336P
-	tristate "SmartSens SC4336P sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC4336P camera.
-
-config VIDEO_SC450AI
-	tristate "SmartSens SC450AI sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC450ai camera.
 
 config VIDEO_SC500AI
 	tristate "SmartSens SC500AI sensor support"
@@ -2530,36 +2145,6 @@ config VIDEO_SC530AI
 	help
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC530AI camera.
-
-config VIDEO_SC5336
-	tristate "SmartSens SC5336 sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC5336 camera.
-
-config VIDEO_SC830AI
-	tristate "SmartSens SC830AI sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC830AI camera.
-
-config VIDEO_SC831AI
-	tristate "SmartSens SC831AI sensor support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a Video4Linux2 sensor driver for the SmartSens
-	  SC831AI camera.
 
 config VIDEO_SC850SL
 	tristate "SmartSens SC850SL sensor support"
@@ -2776,18 +2361,6 @@ config VIDEO_DW9768
 	  This is a driver for the DW9768 camera lens voice coil.
 	  DW9768 is a 10 bit DAC with 100mA output current sink
 	  capability. This is designed for linear control of
-	  voice coil motors, controlled via I2C serial interface.
-
-config VIDEO_DW9800V
-	tristate "DW9800V lens voice coil support"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  This is a driver for the DW9800V camera lens voice coil.
-	  DW9800W is a 10 bit DAC with ±130mA output current sink
-	  capability. This is designed for linear control of bi-direction
 	  voice coil motors, controlled via I2C serial interface.
 
 config VIDEO_DW9800W

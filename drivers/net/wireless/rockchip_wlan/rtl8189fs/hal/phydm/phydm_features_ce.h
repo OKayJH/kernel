@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -42,10 +43,6 @@
 #if (RTL8822B_SUPPORT || RTL8821C_SUPPORT)
 	#define FAHM_SUPPORT
 #endif
-
-#if (RTL8822C_SUPPORT)
-	#define IFS_CLM_SUPPORT
-#endif
 	#define NHM_SUPPORT
 	#define CLM_SUPPORT
 
@@ -53,8 +50,8 @@
 	#define NHM_DYM_PW_TH_SUPPORT
 #endif
 
-#if (RTL8822C_SUPPORT)
-	/*@#define PHYDM_PHYSTAUS_AUTO_SWITCH*/
+#if (RTL8822B_SUPPORT)
+	/*@#define PHYDM_PHYSTAUS_SMP_MODE*/
 #endif
 
 /*@#define PHYDM_TDMA_DIG_SUPPORT*/
@@ -94,20 +91,16 @@
 	#endif
 #endif
 
-#if (RTL8822B_SUPPORT || RTL8192F_SUPPORT || RTL8723D_SUPPORT)
+#if (RTL8822B_SUPPORT || RTL8192F_SUPPORT)
 	#define PHYDM_POWER_TRAINING_SUPPORT
 #endif
 
-#if (RTL8822C_SUPPORT || RTL8814B_SUPPORT)
+#if (RTL8822C_SUPPORT)
 	#define PHYDM_PMAC_TX_SETTING_SUPPORT
 #endif
 
-#if (RTL8822C_SUPPORT || RTL8814B_SUPPORT)
-	#define PHYDM_MP_SUPPORT
-#endif
-
 #if (RTL8822C_SUPPORT)
-	#define	PHYDM_CCK_RX_PATHDIV_SUPPORT
+	#define PHYDM_MP_SUPPORT
 #endif
 
 #if (RTL8822B_SUPPORT)
@@ -131,23 +124,16 @@
 	#define	CONFIG_RECEIVER_BLOCKING
 #endif
 
-#if (RTL8821C_SUPPORT || RTL8822C_SUPPORT || RTL8822B_SUPPORT)
-	#define CONFIG_BW_INDICATION
-#endif
-
-#if (RTL8192F_SUPPORT)
+#if (RTL8192F_SUPPORT == 1)
 	/*#define	CONFIG_8912F_SPUR_CALIBRATION*/
 #endif
 
-#if (RTL8822B_SUPPORT)
+#if (RTL8822B_SUPPORT == 1)
 	#define	CONFIG_8822B_SPUR_CALIBRATION
 #endif
 
 #ifdef CONFIG_SUPPORT_DYNAMIC_TXPWR
 #define CONFIG_DYNAMIC_TX_TWR
-#endif
-#if (RTL8822C_SUPPORT)
-#define PHYDM_HW_IGI
 #endif
 #define PHYDM_SUPPORT_CCKPD
 #define PHYDM_SUPPORT_ADAPTIVITY
@@ -175,7 +161,7 @@
 	#endif
 #endif
 
-#if (RTL8822B_SUPPORT || RTL8822C_SUPPORT || RTL8192F_SUPPORT)
+#if (RTL8822C_SUPPORT)
 	#define CONFIG_PATH_DIVERSITY
 #endif
 
@@ -236,11 +222,5 @@
 #if (RTL8822B_SUPPORT || RTL8192F_SUPPORT)
 	#define CONFIG_DIRECTIONAL_BF
 #endif
-
-#if (RTL8822C_SUPPORT)
-	#define CONFIG_MU_RSOML
-#endif
-
-#define RA_MASK_BY_RX_UTILITY
 
 #endif

@@ -56,8 +56,6 @@
 #define DW_MCI_FREQ_MAX	200000000	/* unit: HZ */
 #define DW_MCI_FREQ_MIN	100000		/* unit: HZ */
 
-#define DW_MCI_POWER_OFF_DELAY	200	/* unit: ms */
-
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
 				 SDMMC_IDMAC_INT_CES | SDMMC_IDMAC_INT_DU | \
 				 SDMMC_IDMAC_INT_FBE | SDMMC_IDMAC_INT_RI | \
@@ -125,8 +123,6 @@ void rv1106_sdmmc_put_lock(void)
 }
 EXPORT_SYMBOL(rv1106_sdmmc_put_lock);
 #endif
-
-#define RV1106_RAMDON_DATA_SIZE 508
 
 #if defined(CONFIG_DEBUG_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
@@ -529,7 +525,8 @@ static void dw_mci_dmac_complete_dma(void *arg)
 		tasklet_schedule(&host->tasklet);
 	}
 
-	if (host->need_xfer_timer)
+	if (host->need_xfer_timer &&
+	    host->dir_status == DW_MCI_RECV_STATUS)
 		del_timer(&host->xfer_timer);
 }
 
@@ -742,7 +739,7 @@ static inline int dw_mci_prepare_desc32(struct dw_mci *host,
 	if (host->is_rv1106_sd && (data->flags & MMC_DATA_WRITE)) {
 		desc->des0 = desc_last->des0;
 		desc->des2 = desc_last->des2;
-		desc->des1 = RV1106_RAMDON_DATA_SIZE; /* Random dirty data for last one desc */
+		desc->des1 = 0x8; /* Random dirty data for last one desc */
 		desc_last = desc;
 	}
 
@@ -1450,6 +1447,13 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
+	if (host->is_rv1106_sd) {
+		u32 reg;
+
+		readl_poll_timeout(host->regs + SDMMC_STATUS, reg,
+				   reg & BIT(2), USEC_PER_MSEC, 500 * USEC_PER_MSEC);
+	}
+
 	spin_lock_bh(&host->lock);
 
 	if (host->is_rv1106_sd)
@@ -1464,7 +1468,7 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
-	u32 regs, power_off_delay;
+	u32 regs;
 	int ret;
 
 	switch (ios->bus_width) {
@@ -1503,18 +1507,8 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
-		if (dw_mci_get_cd(mmc) && !IS_ERR_OR_NULL(slot->host->pinctrl)) {
-			if (!IS_ERR(slot->host->idle_state))
-				pinctrl_select_state(slot->host->pinctrl, slot->host->idle_state);
-
-			if (!IS_ERR(mmc->supply.vmmc))
-				mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
-
-			if (device_property_read_u32(slot->host->dev, "power-off-delay-ms",
-			    &power_off_delay))
-				power_off_delay = DW_MCI_POWER_OFF_DELAY;
-			msleep(power_off_delay);
-		}
+		if (!IS_ERR_OR_NULL(slot->host->pinctrl))
+			pinctrl_select_state(slot->host->pinctrl, slot->host->idle_state);
 
 		if (!IS_ERR(mmc->supply.vmmc)) {
 			ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
@@ -1526,17 +1520,15 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				return;
 			}
 		}
-
-		if (!IS_ERR_OR_NULL(slot->host->pinctrl) &&
-		    !IS_ERR(slot->host->normal_state))
-			pinctrl_select_state(slot->host->pinctrl, slot->host->normal_state);
-
 		set_bit(DW_MMC_CARD_NEED_INIT, &slot->flags);
 		regs = mci_readl(slot->host, PWREN);
 		regs |= (1 << slot->id);
 		mci_writel(slot->host, PWREN, regs);
 		break;
 	case MMC_POWER_ON:
+		if (!IS_ERR_OR_NULL(slot->host->pinctrl))
+			pinctrl_select_state(slot->host->pinctrl, slot->host->normal_state);
+
 		if (!slot->host->vqmmc_enabled) {
 			if (!IS_ERR(mmc->supply.vqmmc)) {
 				ret = regulator_enable(mmc->supply.vqmmc);
@@ -1551,11 +1543,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				slot->host->vqmmc_enabled = true;
 			}
 
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 			/* Reset our state machine after powering on */
 			dw_mci_ctrl_reset(slot->host,
 					  SDMMC_CTRL_ALL_RESET_FLAGS);
-#endif
 		}
 
 		/* Adjust clock / bus width after power is up */
@@ -1563,12 +1553,11 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		break;
 	case MMC_POWER_OFF:
+		if (!IS_ERR_OR_NULL(slot->host->pinctrl))
+			pinctrl_select_state(slot->host->pinctrl, slot->host->idle_state);
+
 		/* Turn clock off before power goes down */
 		dw_mci_setup_bus(slot, false);
-
-		if (!IS_ERR_OR_NULL(slot->host->pinctrl) &&
-		    !IS_ERR(slot->host->idle_state))
-			pinctrl_select_state(slot->host->pinctrl, slot->host->idle_state);
 
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
@@ -1879,9 +1868,6 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 
 	WARN_ON(host->cmd || host->data);
 
-	if (host->need_xfer_timer)
-		del_timer(&host->xfer_timer);
-
 	host->slot->mrq = NULL;
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
@@ -2027,10 +2013,8 @@ static void dw_mci_set_xfer_timeout(struct dw_mci *host)
 				   host->bus_hz);
 
 	/* add a bit spare time */
-	if (host->dir_status == DW_MCI_RECV_STATUS)
-		xfer_ms += 100;
-	else
-		xfer_ms += 8000;
+	xfer_ms += 100;
+
 	spin_lock_irqsave(&host->irq_lock, irqflags);
 	if (!test_bit(EVENT_XFER_COMPLETE, &host->pending_events))
 		mod_timer(&host->xfer_timer,
@@ -2165,13 +2149,6 @@ static void dw_mci_tasklet_func(unsigned long priv)
 					send_stop_abort(host, data);
 				dw_mci_stop_dma(host);
 				state = STATE_DATA_ERROR;
-				if (host->dir_status == DW_MCI_SEND_STATUS) {
-					data->bytes_xfered = 0;
-					data->error = -ETIMEDOUT;
-					host->data = NULL;
-					dw_mci_request_end(host, mrq);
-					goto unlock;
-				}
 				break;
 			}
 
@@ -2183,7 +2160,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 */
 				if (host->dir_status == DW_MCI_RECV_STATUS)
 					dw_mci_set_drto(host);
-				if (host->need_xfer_timer)
+				if (host->need_xfer_timer &&
+				    host->dir_status == DW_MCI_RECV_STATUS)
 					dw_mci_set_xfer_timeout(host);
 				break;
 			}
@@ -2225,8 +2203,6 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 */
 				if (host->dir_status == DW_MCI_RECV_STATUS)
 					dw_mci_set_drto(host);
-				if (host->need_xfer_timer && host->dir_status == DW_MCI_SEND_STATUS)
-					dw_mci_set_xfer_timeout(host);
 				break;
 			}
 
@@ -2243,19 +2219,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				}
 
 				/* stop command for open-ended transfer*/
-				if (data->stop) {
-					if (host->is_rv1106_sd && (data->flags & MMC_DATA_WRITE)) {
-						int fifo_count;
-
-						if (readl_poll_timeout_atomic(host->regs + SDMMC_STATUS, fifo_count,
-								((fifo_count >> 17) & 0x7FF) <= RV1106_RAMDON_DATA_SIZE / 4,
-								0, 5000 * USEC_PER_MSEC))
-							data->error = -ETIMEDOUT;
-						udelay(1);
-						dw_mci_reset(host);
-					}
+				if (data->stop)
 					send_stop_abort(host, data);
-				}
 			} else {
 				/*
 				 * If we don't have a command complete now we'll
@@ -2786,7 +2751,8 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			del_timer(&host->cto_timer);
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
 			host->cmd_status = pending;
-			if (host->need_xfer_timer)
+			if ((host->need_xfer_timer) &&
+			     host->dir_status == DW_MCI_RECV_STATUS)
 				del_timer(&host->xfer_timer);
 			smp_wmb(); /* drain writebuffer */
 			set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
@@ -2827,15 +2793,8 @@ rv1106_sd:
 
 		if (pending & SDMMC_INT_RXDR) {
 			mci_writel(host, RINTSTS, SDMMC_INT_RXDR);
-			if (host->dir_status == DW_MCI_RECV_STATUS && host->sg) {
+			if (host->dir_status == DW_MCI_RECV_STATUS && host->sg)
 				dw_mci_read_data_pio(host, false);
-			} else {
-				host->data_status = SDMMC_INT_DRTO;
-				mci_writel(host, CTRL, mci_readl(host, CTRL) |
-					   SDMMC_CTRL_FIFO_RESET);
-				set_bit(EVENT_DATA_ERROR, &host->pending_events);
-				tasklet_schedule(&host->tasklet);
-			}
 		}
 
 		if (pending & SDMMC_INT_TXDR) {
@@ -3698,7 +3657,7 @@ int dw_mci_runtime_resume(struct device *dev)
 		mci_writel(host, INTMASK, ret);
 	}
 
-	if (host->slot && host->slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
+	if (host->slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
 		dw_mci_set_ios(host->slot->mmc, &host->slot->mmc->ios);
 
 	/* Force setup bus to guarantee available clock output */

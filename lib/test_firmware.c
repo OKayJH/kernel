@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <linux/kstrtox.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 #include <linux/efi_embedded_fw.h>
@@ -42,7 +41,6 @@ struct test_batched_req {
 	bool sent;
 	const struct firmware *fw;
 	const char *name;
-	const char *fw_buf;
 	struct completion completion;
 	struct task_struct *task;
 	struct device *dev;
@@ -145,14 +143,8 @@ static void __test_release_all_firmware(void)
 
 	for (i = 0; i < test_fw_config->num_requests; i++) {
 		req = &test_fw_config->reqs[i];
-		if (req->fw) {
-			if (req->fw_buf) {
-				kfree_const(req->fw_buf);
-				req->fw_buf = NULL;
-			}
+		if (req->fw)
 			release_firmware(req->fw);
-			req->fw = NULL;
-		}
 	}
 
 	vfree(test_fw_config->reqs);
@@ -183,7 +175,7 @@ static int __kstrncpy(char **dst, const char *name, size_t count, gfp_t gfp)
 {
 	*dst = kstrndup(name, count, gfp);
 	if (!*dst)
-		return -ENOMEM;
+		return -ENOSPC;
 	return count;
 }
 
@@ -321,26 +313,16 @@ static ssize_t config_test_show_str(char *dst,
 	return len;
 }
 
-static inline int __test_dev_config_update_bool(const char *buf, size_t size,
-				       bool *cfg)
-{
-	int ret;
-
-	if (kstrtobool(buf, cfg) < 0)
-		ret = -EINVAL;
-	else
-		ret = size;
-
-	return ret;
-}
-
 static int test_dev_config_update_bool(const char *buf, size_t size,
 				       bool *cfg)
 {
 	int ret;
 
 	mutex_lock(&test_fw_mutex);
-	ret = __test_dev_config_update_bool(buf, size, cfg);
+	if (strtobool(buf, cfg) < 0)
+		ret = -EINVAL;
+	else
+		ret = size;
 	mutex_unlock(&test_fw_mutex);
 
 	return ret;
@@ -351,8 +333,7 @@ static ssize_t test_dev_config_show_bool(char *buf, bool val)
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static int __test_dev_config_update_size_t(
-					 const char *buf,
+static int test_dev_config_update_size_t(const char *buf,
 					 size_t size,
 					 size_t *cfg)
 {
@@ -363,7 +344,9 @@ static int __test_dev_config_update_size_t(
 	if (ret)
 		return ret;
 
+	mutex_lock(&test_fw_mutex);
 	*(size_t *)cfg = new;
+	mutex_unlock(&test_fw_mutex);
 
 	/* Always return full write size even if we didn't consume all */
 	return size;
@@ -379,30 +362,24 @@ static ssize_t test_dev_config_show_int(char *buf, int val)
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static int __test_dev_config_update_u8(const char *buf, size_t size, u8 *cfg)
-{
-	u8 val;
-	int ret;
-
-	ret = kstrtou8(buf, 10, &val);
-	if (ret)
-		return ret;
-
-	*(u8 *)cfg = val;
-
-	/* Always return full write size even if we didn't consume all */
-	return size;
-}
-
 static int test_dev_config_update_u8(const char *buf, size_t size, u8 *cfg)
 {
 	int ret;
+	long new;
+
+	ret = kstrtol(buf, 10, &new);
+	if (ret)
+		return ret;
+
+	if (new > U8_MAX)
+		return -EINVAL;
 
 	mutex_lock(&test_fw_mutex);
-	ret = __test_dev_config_update_u8(buf, size, cfg);
+	*(u8 *)cfg = new;
 	mutex_unlock(&test_fw_mutex);
 
-	return ret;
+	/* Always return full write size even if we didn't consume all */
+	return size;
 }
 
 static ssize_t test_dev_config_show_u8(char *buf, u8 val)
@@ -431,10 +408,10 @@ static ssize_t config_num_requests_store(struct device *dev,
 		mutex_unlock(&test_fw_mutex);
 		goto out;
 	}
-
-	rc = __test_dev_config_update_u8(buf, count,
-					 &test_fw_config->num_requests);
 	mutex_unlock(&test_fw_mutex);
+
+	rc = test_dev_config_update_u8(buf, count,
+				       &test_fw_config->num_requests);
 
 out:
 	return rc;
@@ -478,10 +455,10 @@ static ssize_t config_buf_size_store(struct device *dev,
 		mutex_unlock(&test_fw_mutex);
 		goto out;
 	}
-
-	rc = __test_dev_config_update_size_t(buf, count,
-					     &test_fw_config->buf_size);
 	mutex_unlock(&test_fw_mutex);
+
+	rc = test_dev_config_update_size_t(buf, count,
+					   &test_fw_config->buf_size);
 
 out:
 	return rc;
@@ -508,10 +485,10 @@ static ssize_t config_file_offset_store(struct device *dev,
 		mutex_unlock(&test_fw_mutex);
 		goto out;
 	}
-
-	rc = __test_dev_config_update_size_t(buf, count,
-					     &test_fw_config->file_offset);
 	mutex_unlock(&test_fw_mutex);
+
+	rc = test_dev_config_update_size_t(buf, count,
+					   &test_fw_config->file_offset);
 
 out:
 	return rc;
@@ -606,14 +583,12 @@ static ssize_t trigger_request_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -ENOSPC;
 
 	pr_info("loading '%s'\n", name);
 
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
-	if (test_fw_config->reqs)
-		__test_release_all_firmware();
 	test_firmware = NULL;
 	rc = request_firmware(&test_firmware, name, dev);
 	if (rc) {
@@ -654,7 +629,7 @@ static ssize_t trigger_request_platform_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -ENOSPC;
 
 	pr_info("inserting test platform fw '%s'\n", name);
 	efi_embedded_fw.name = name;
@@ -707,15 +682,13 @@ static ssize_t trigger_async_request_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -ENOSPC;
 
 	pr_info("loading '%s'\n", name);
 
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
 	test_firmware = NULL;
-	if (test_fw_config->reqs)
-		__test_release_all_firmware();
 	rc = request_firmware_nowait(THIS_MODULE, 1, name, dev, GFP_KERNEL,
 				     NULL, trigger_async_request_cb);
 	if (rc) {
@@ -752,14 +725,12 @@ static ssize_t trigger_custom_fallback_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -ENOSPC;
 
 	pr_info("loading '%s' using custom fallback mechanism\n", name);
 
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
-	if (test_fw_config->reqs)
-		__test_release_all_firmware();
 	test_firmware = NULL;
 	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG, name,
 				     dev, GFP_KERNEL, NULL,
@@ -803,7 +774,7 @@ static int test_fw_run_batch_request(void *data)
 
 		test_buf = kzalloc(TEST_FIRMWARE_BUF_SIZE, GFP_KERNEL);
 		if (!test_buf)
-			return -ENOMEM;
+			return -ENOSPC;
 
 		if (test_fw_config->partial)
 			req->rc = request_partial_firmware_into_buf
@@ -822,8 +793,6 @@ static int test_fw_run_batch_request(void *data)
 						 test_fw_config->buf_size);
 		if (!req->fw)
 			kfree(test_buf);
-		else
-			req->fw_buf = test_buf;
 	} else {
 		req->rc = test_fw_config->req_firmware(&req->fw,
 						       req->name,
@@ -863,11 +832,6 @@ static ssize_t trigger_batched_requests_store(struct device *dev,
 
 	mutex_lock(&test_fw_mutex);
 
-	if (test_fw_config->reqs) {
-		rc = -EBUSY;
-		goto out_bail;
-	}
-
 	test_fw_config->reqs =
 		vzalloc(array3_size(sizeof(struct test_batched_req),
 				    test_fw_config->num_requests, 2));
@@ -884,7 +848,6 @@ static ssize_t trigger_batched_requests_store(struct device *dev,
 		req->fw = NULL;
 		req->idx = i;
 		req->name = test_fw_config->name;
-		req->fw_buf = NULL;
 		req->dev = dev;
 		init_completion(&req->completion);
 		req->task = kthread_run(test_fw_run_batch_request, req,
@@ -967,11 +930,6 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 
 	mutex_lock(&test_fw_mutex);
 
-	if (test_fw_config->reqs) {
-		rc = -EBUSY;
-		goto out_bail;
-	}
-
 	test_fw_config->reqs =
 		vzalloc(array3_size(sizeof(struct test_batched_req),
 				    test_fw_config->num_requests, 2));
@@ -989,7 +947,6 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 	for (i = 0; i < test_fw_config->num_requests; i++) {
 		req = &test_fw_config->reqs[i];
 		req->name = test_fw_config->name;
-		req->fw_buf = NULL;
 		req->fw = NULL;
 		req->idx = i;
 		init_completion(&req->completion);
@@ -1157,7 +1114,6 @@ static int __init test_firmware_init(void)
 
 	rc = misc_register(&test_fw_misc_device);
 	if (rc) {
-		__test_firmware_config_free();
 		kfree(test_fw_config);
 		pr_err("could not register misc device: %d\n", rc);
 		return rc;

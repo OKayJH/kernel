@@ -208,7 +208,6 @@ config FSL_DMA
 config FSL_EDMA
 	tristate "Freescale eDMA engine support"
 	depends on OF
-	depends on HAS_IOMEM
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -278,7 +277,6 @@ config IMX_SDMA
 
 config INTEL_IDMA64
 	tristate "Intel integrated DMA 64-bit support"
-	depends on HAS_IOMEM
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -511,14 +509,6 @@ config PLX_DMA
 	  Some PLX ExpressLane PCI Switches support additional DMA engines.
 	  These are exposed via extra functions on the switch's
 	  upstream port. Each function exposes one DMA channel.
-
-config ROCKCHIP_DMA
-	tristate "Rockchip DMA support"
-	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	help
-	  Support the DMA engine for Rockchip family platform devices.
 
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"

@@ -11,9 +11,6 @@ config EBF_DHT11
 config DS18B20
 	tristate "ds18b20"
 
-config INFRARED
-	tristate "infrared"
-
 endif # EBF_MODULE
 
 endmenu

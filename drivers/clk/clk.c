@@ -253,17 +253,6 @@ static bool clk_core_is_enabled(struct clk_core *core)
 		}
 	}
 
-	/*
-	 * This could be called with the enable lock held, or from atomic
-	 * context. If the parent isn't enabled already, we can't do
-	 * anything here. We can also assume this clock isn't enabled.
-	 */
-	if ((core->flags & CLK_OPS_PARENT_ENABLE) && core->parent)
-		if (!clk_core_is_enabled(core->parent)) {
-			ret = false;
-			goto done;
-		}
-
 	ret = core->ops->is_enabled(core->hw);
 done:
 	if (core->rpm_enabled)
@@ -3250,7 +3239,6 @@ static void possible_parent_show(struct seq_file *s, struct clk_core *core,
 				 unsigned int i, char terminator)
 {
 	struct clk_core *parent;
-	const char *name = NULL;
 
 	/*
 	 * Go through the following options to fetch a parent's name.
@@ -3265,20 +3253,18 @@ static void possible_parent_show(struct seq_file *s, struct clk_core *core,
 	 * registered (yet).
 	 */
 	parent = clk_core_get_parent_by_index(core, i);
-	if (parent) {
+	if (parent)
 		seq_puts(s, parent->name);
-	} else if (core->parents[i].name) {
+	else if (core->parents[i].name)
 		seq_puts(s, core->parents[i].name);
-	} else if (core->parents[i].fw_name) {
+	else if (core->parents[i].fw_name)
 		seq_printf(s, "<%s>(fw)", core->parents[i].fw_name);
-	} else {
-		if (core->parents[i].index >= 0)
-			name = of_clk_get_parent_name(core->of_node, core->parents[i].index);
-		if (!name)
-			name = "(missing)";
-
-		seq_puts(s, name);
-	}
+	else if (core->parents[i].index >= 0)
+		seq_puts(s,
+			 of_clk_get_parent_name(core->of_node,
+						core->parents[i].index));
+	else
+		seq_puts(s, "(missing)");
 
 	seq_putc(s, terminator);
 }
@@ -4583,7 +4569,6 @@ int devm_clk_notifier_register(struct device *dev, struct clk *clk,
 	if (!ret) {
 		devres->clk = clk;
 		devres->nb = nb;
-		devres_add(dev, devres);
 	} else {
 		devres_free(devres);
 	}

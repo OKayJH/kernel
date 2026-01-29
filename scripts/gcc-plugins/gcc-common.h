@@ -108,13 +108,7 @@
 #include "varasm.h"
 #include "stor-layout.h"
 #include "internal-fn.h"
-#endif
-
-#include "gimple.h"
-
-#if BUILDING_GCC_VERSION >= 4009
 #include "gimple-expr.h"
-#include "gimple-iterator.h"
 #include "gimple-fold.h"
 #include "context.h"
 #include "tree-ssa-alias.h"
@@ -130,10 +124,13 @@
 #include "gimplify.h"
 #endif
 
+#include "gimple.h"
+
 #if BUILDING_GCC_VERSION >= 4009
 #include "tree-ssa-operands.h"
 #include "tree-phinodes.h"
 #include "tree-cfg.h"
+#include "gimple-iterator.h"
 #include "gimple-ssa.h"
 #include "ssa-iterators.h"
 #endif

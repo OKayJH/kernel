@@ -37,6 +37,7 @@
 #include <linux/rockchip/grf.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mmc/host.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -44,6 +45,8 @@
 #endif
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 #include <linux/device.h>
+
+#include "../../drivers/mmc/core/pwrseq.h"
 
 #if 0
 #define DBG(x...) pr_info("[WLAN_RFKILL]: " x)
@@ -316,11 +319,6 @@ int rockchip_wifi_power(int on)
 			}
 
 			wifi_power_state = 0;
-
-			if (!rfkill_get_bt_power_state(&bt_power, &toggle)) {
-				LOG("%s: toggle = %s\n", __func__, toggle ? "true" : "false");
-			}
-
 			if (toggle) {
 				if (!bt_power) {
 					LOG("%s: wifi will set vbat to low\n", __func__);

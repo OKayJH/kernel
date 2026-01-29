@@ -330,8 +330,7 @@ SYSCALL_DEFINE2(memfd_create,
 
 	if (flags & MFD_ALLOW_SEALING) {
 		file_seals = memfd_file_seals_ptr(file);
-		if (file_seals)
-			*file_seals &= ~F_SEAL_SEAL;
+		*file_seals &= ~F_SEAL_SEAL;
 	}
 
 	fd_install(fd, file);

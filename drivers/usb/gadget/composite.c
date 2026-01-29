@@ -1739,10 +1739,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 					cdev->desc.bcdUSB = cpu_to_le16(0x0320);
 					cdev->desc.bMaxPacketSize0 = 9;
 				} else {
-					if (gadget->lpm_capable)
-						cdev->desc.bcdUSB = cpu_to_le16(0x0210);
-					else
-						cdev->desc.bcdUSB = cpu_to_le16(0x0200);
+					cdev->desc.bcdUSB = cpu_to_le16(0x0210);
 				}
 			} else {
 				if (gadget->lpm_capable)
@@ -2449,10 +2446,6 @@ void composite_resume(struct usb_gadget *gadget)
 		if (maxpower > USB_SELF_POWER_VBUS_MAX_DRAW)
 			usb_gadget_clear_selfpowered(gadget);
 
-		usb_gadget_vbus_draw(gadget, maxpower);
-	} else {
-		maxpower = CONFIG_USB_GADGET_VBUS_DRAW;
-		maxpower = min(maxpower, 100U);
 		usb_gadget_vbus_draw(gadget, maxpower);
 	}
 

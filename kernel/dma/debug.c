@@ -606,19 +606,15 @@ static struct dma_debug_entry *__dma_entry_alloc(void)
 	return entry;
 }
 
-/*
- * This should be called outside of free_entries_lock scope to avoid potential
- * deadlocks with serial consoles that use DMA.
- */
-static void __dma_entry_alloc_check_leak(u32 nr_entries)
+static void __dma_entry_alloc_check_leak(void)
 {
-	u32 tmp = nr_entries % nr_prealloc_entries;
+	u32 tmp = nr_total_entries % nr_prealloc_entries;
 
 	/* Shout each time we tick over some multiple of the initial pool */
 	if (tmp < DMA_DEBUG_DYNAMIC_ENTRIES) {
 		pr_info("dma_debug_entry pool grown to %u (%u00%%)\n",
-			nr_entries,
-			(nr_entries / nr_prealloc_entries));
+			nr_total_entries,
+			(nr_total_entries / nr_prealloc_entries));
 	}
 }
 
@@ -629,10 +625,8 @@ static void __dma_entry_alloc_check_leak(u32 nr_entries)
  */
 static struct dma_debug_entry *dma_entry_alloc(void)
 {
-	bool alloc_check_leak = false;
 	struct dma_debug_entry *entry;
 	unsigned long flags;
-	u32 nr_entries;
 
 	spin_lock_irqsave(&free_entries_lock, flags);
 	if (num_free_entries == 0) {
@@ -642,16 +636,12 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 			pr_err("debugging out of memory - disabling\n");
 			return NULL;
 		}
-		alloc_check_leak = true;
-		nr_entries = nr_total_entries;
+		__dma_entry_alloc_check_leak();
 	}
 
 	entry = __dma_entry_alloc();
 
 	spin_unlock_irqrestore(&free_entries_lock, flags);
-
-	if (alloc_check_leak)
-		__dma_entry_alloc_check_leak(nr_entries);
 
 #ifdef CONFIG_STACKTRACE
 	entry->stack_len = stack_trace_save(entry->stack_entries,

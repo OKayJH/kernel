@@ -27,7 +27,7 @@ static struct device_node *kobj_to_device_node(struct kobject *kobj)
  * @node:	Node to inc refcount, NULL is supported to simplify writing of
  *		callers
  *
- * Return: The node with refcount incremented.
+ * Returns node.
  */
 struct device_node *of_node_get(struct device_node *node)
 {
@@ -63,14 +63,15 @@ int of_reconfig_notifier_unregister(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(of_reconfig_notifier_unregister);
 
-static const char *action_names[] = {
-	[0] = "INVALID",
+#ifdef DEBUG
+const char *action_names[] = {
 	[OF_RECONFIG_ATTACH_NODE] = "ATTACH_NODE",
 	[OF_RECONFIG_DETACH_NODE] = "DETACH_NODE",
 	[OF_RECONFIG_ADD_PROPERTY] = "ADD_PROPERTY",
 	[OF_RECONFIG_REMOVE_PROPERTY] = "REMOVE_PROPERTY",
 	[OF_RECONFIG_UPDATE_PROPERTY] = "UPDATE_PROPERTY",
 };
+#endif
 
 int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 {
@@ -103,10 +104,8 @@ int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
  * @arg		- argument of the of notifier
  *
  * Returns the new state of a device based on the notifier used.
- *
- * Return: OF_RECONFIG_CHANGE_REMOVE on device going from enabled to
- * disabled, OF_RECONFIG_CHANGE_ADD on device going from disabled to
- * enabled and OF_RECONFIG_NO_CHANGE on no change.
+ * Returns 0 on device going from enabled to disabled, 1 on device
+ * going from disabled to enabled and -1 on no change.
  */
 int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *pr)
 {
@@ -373,8 +372,7 @@ void of_node_release(struct kobject *kobj)
  * property structure and the property name & contents. The property's
  * flags have the OF_DYNAMIC bit set so that we can differentiate between
  * dynamically allocated properties and not.
- *
- * Return: The newly allocated property or NULL on out of memory error.
+ * Returns the newly allocated property or NULL on out of memory error.
  */
 struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 {
@@ -417,7 +415,7 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
  * another node.  The node data are dynamically allocated and all the node
  * flags have the OF_DYNAMIC & OF_DETACHED bits set.
  *
- * Return: The newly allocated node or NULL on out of memory error.
+ * Returns the newly allocated node or NULL on out of memory error.
  */
 struct device_node *__of_node_dup(const struct device_node *np,
 				  const char *full_name)
@@ -592,9 +590,21 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 		}
 
 		ret = __of_add_property(ce->np, ce->prop);
+		if (ret) {
+			pr_err("changeset: add_property failed @%pOF/%s\n",
+				ce->np,
+				ce->prop->name);
+			break;
+		}
 		break;
 	case OF_RECONFIG_REMOVE_PROPERTY:
 		ret = __of_remove_property(ce->np, ce->prop);
+		if (ret) {
+			pr_err("changeset: remove_property failed @%pOF/%s\n",
+				ce->np,
+				ce->prop->name);
+			break;
+		}
 		break;
 
 	case OF_RECONFIG_UPDATE_PROPERTY:
@@ -608,17 +618,20 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 		}
 
 		ret = __of_update_property(ce->np, ce->prop, &old_prop);
+		if (ret) {
+			pr_err("changeset: update_property failed @%pOF/%s\n",
+				ce->np,
+				ce->prop->name);
+			break;
+		}
 		break;
 	default:
 		ret = -EINVAL;
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	if (ret) {
-		pr_err("changeset: apply failed: %-15s %pOF:%s\n",
-		       action_names[ce->action], ce->np, ce->prop->name);
+	if (ret)
 		return ret;
-	}
 
 	switch (ce->action) {
 	case OF_RECONFIG_ATTACH_NODE:
@@ -768,8 +781,7 @@ static int __of_changeset_apply(struct of_changeset *ocs)
  * Any side-effects of live tree state changes are applied here on
  * success, like creation/destruction of devices and side-effects
  * like creation of sysfs properties and directories.
- *
- * Return: 0 on success, a negative error value in case of an error.
+ * Returns 0 on success, a negative error value in case of an error.
  * On error the partially applied effects are reverted.
  */
 int of_changeset_apply(struct of_changeset *ocs)
@@ -863,8 +875,7 @@ static int __of_changeset_revert(struct of_changeset *ocs)
  * was before the application.
  * Any side-effects like creation/destruction of devices and
  * removal of sysfs properties and directories are applied.
- *
- * Return: 0 on success, a negative error value in case of an error.
+ * Returns 0 on success, a negative error value in case of an error.
  */
 int of_changeset_revert(struct of_changeset *ocs)
 {
@@ -892,16 +903,12 @@ EXPORT_SYMBOL_GPL(of_changeset_revert);
  * + OF_RECONFIG_ADD_PROPERTY
  * + OF_RECONFIG_REMOVE_PROPERTY,
  * + OF_RECONFIG_UPDATE_PROPERTY
- *
- * Return: 0 on success, a negative error value in case of an error.
+ * Returns 0 on success, a negative error value in case of an error.
  */
 int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 		struct device_node *np, struct property *prop)
 {
 	struct of_changeset_entry *ce;
-
-	if (WARN_ON(action >= ARRAY_SIZE(action_names)))
-		return -EINVAL;
 
 	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
 	if (!ce)

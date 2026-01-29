@@ -32,7 +32,6 @@
 
 #include "analogix_dp_core.h"
 #include "analogix_dp_reg.h"
-#include "../../rockchip/rockchip_drm_drv.h"
 
 #define to_dp(nm)	container_of(nm, struct analogix_dp_device, nm)
 
@@ -52,9 +51,6 @@ struct bridge_init {
 	struct i2c_client *client;
 	struct device_node *node;
 };
-
-static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
-				const struct drm_display_mode *adj_mode);
 
 static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
 				     const struct drm_display_mode *mode,
@@ -334,22 +330,16 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	for (lane = 0; lane < lane_count; lane++)
 		dp->link_train.cr_loop[lane] = 0;
 
-	/* Set link rate and count as you want to establish */
+	/* Set link rate and count as you want to establish*/
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 
-	if (dp->nr_link_rate_table) {
-		/* Setup DP_LINK_RATE_SET for eDP 1.4 and later */
-		drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET, dp->link_train.lane_count);
-		drm_dp_dpcd_writeb(&dp->aux, DP_LINK_RATE_SET, dp->link_rate_select);
-	} else {
-		/* Setup DP_LINK_BW_SET for eDP 1.3 and earlier */
-		buf[0] = dp->link_train.link_rate;
-		buf[1] = dp->link_train.lane_count;
-		retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
-		if (retval < 0)
-			return retval;
-	}
+	/* Setup RX configuration */
+	buf[0] = dp->link_train.link_rate;
+	buf[1] = dp->link_train.lane_count;
+	retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
+	if (retval < 0)
+		return retval;
 
 	/* Spread AMP if required, enable 8b/10b coding */
 	buf[0] = analogix_dp_ssc_supported(dp) ? DP_SPREAD_AMP_0_5 : 0;
@@ -647,138 +637,23 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 	return 0;
 }
 
-static bool analogix_dp_link_config_validate(u8 link_rate, u8 lane_count)
-{
-	switch (link_rate) {
-	case DP_LINK_BW_1_62:
-	case DP_LINK_BW_2_7:
-	case DP_LINK_BW_5_4:
-	/* Supported link rate in eDP 1.4 */
-	case EDP_LINK_BW_2_16:
-	case EDP_LINK_BW_2_43:
-	case EDP_LINK_BW_3_24:
-	case EDP_LINK_BW_4_32:
-		break;
-	default:
-		return false;
-	}
-
-	switch (lane_count) {
-	case 1:
-	case 2:
-	case 4:
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
-
-static u8 analogix_dp_select_link_rate_from_table(struct analogix_dp_device *dp)
-{
-	int i;
-	u8 bw_code;
-	u32 max_link_rate = drm_dp_bw_code_to_link_rate(dp->video_info.max_link_rate);
-
-	for (i = 0; i < dp->nr_link_rate_table; i++) {
-		bw_code =  drm_dp_link_rate_to_bw_code(dp->link_rate_table[i]);
-
-		if (!analogix_dp_bandwidth_ok(dp, &dp->video_info.mode, dp->link_rate_table[i],
-					      dp->link_train.lane_count))
-			continue;
-
-		if (dp->link_rate_table[i] <= max_link_rate &&
-		    analogix_dp_link_config_validate(bw_code, dp->link_train.lane_count)) {
-			dp->link_rate_select = i;
-			return bw_code;
-		}
-	}
-
-	return 0;
-}
-
-static int analogix_dp_select_rx_bandwidth(struct analogix_dp_device *dp)
-{
-	if (dp->nr_link_rate_table)
-		/*
-		 * Select the smallest one among link rates which meet
-		 * the bandwidth requirement for eDP 1.4 and later.
-		 */
-		dp->link_train.link_rate = analogix_dp_select_link_rate_from_table(dp);
-	else
-		/*
-		 * Select the smaller one between rx DP_MAX_LINK_RATE
-		 * and the max link rate supported by the platform.
-		 */
-		dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate,
-						 dp->video_info.max_link_rate);
-	if (!dp->link_train.link_rate)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int analogix_dp_init_link_rate_table(struct analogix_dp_device *dp)
-{
-	__le16 link_rate_table[DP_MAX_SUPPORTED_RATES];
-	int i;
-	int ret;
-
-	ret = drm_dp_dpcd_read(&dp->aux, DP_SUPPORTED_LINK_RATES, link_rate_table,
-			       sizeof(link_rate_table));
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(link_rate_table); i++) {
-		int val = le16_to_cpu(link_rate_table[i]);
-
-		if (val == 0)
-			break;
-
-		/* Convert to the link_rate as drm_dp_bw_code_to_link_rate() */
-		dp->link_rate_table[i] = (val * 20);
-	}
-	dp->nr_link_rate_table = i;
-
-	return 0;
-}
-
 static int analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
 					    u8 *bandwidth)
 {
 	u8 data;
 	int ret;
 
-	ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_DPCD_REV, &data);
-	if (ret == 1 && data >= DP_EDP_14) {
-		u32 max_link_rate;
+	/*
+	 * For DP rev.1.1, Maximum link rate of Main Link lanes
+	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
+	 * For DP rev.1.2, Maximum link rate of Main Link lanes
+	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
+	 */
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
+	if (ret < 0)
+		return ret;
 
-		/* As the Table 4-23 in eDP 1.4 spec, the link rate table is required */
-		if (!dp->nr_link_rate_table) {
-			dev_info(dp->dev, "eDP version: 0x%02x supports link rate table\n", data);
-
-			ret = analogix_dp_init_link_rate_table(dp);
-			if (ret) {
-				dev_err(dp->dev, "failed to read link rate table: %d\n", ret);
-				return ret;
-			}
-		}
-		max_link_rate = dp->link_rate_table[dp->nr_link_rate_table - 1];
-		*bandwidth = drm_dp_link_rate_to_bw_code(max_link_rate);
-	} else {
-		/*
-		 * For DP rev.1.1, Maximum link rate of Main Link lanes
-		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
-		 * For DP rev.1.2, Maximum link rate of Main Link lanes
-		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
-		 */
-		ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
-		if (ret < 0)
-			return ret;
-
-		*bandwidth = data;
-	}
+	*bandwidth = data;
 
 	return 0;
 }
@@ -816,14 +691,13 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	 */
 	analogix_dp_reset_macro(dp);
 
-	/* Setup TX lane count */
-	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lanes);
+	/* Initialize by reading RX's DPCD */
+	analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
+	analogix_dp_get_max_rx_lane_count(dp, &dp->link_train.lane_count);
 
-	/* Setup TX lane rate */
-	if (analogix_dp_select_rx_bandwidth(dp)) {
-		dev_err(dp->dev, "Select rx bandwidth failed\n");
-		return -EINVAL;
-	}
+	/* Setup TX lane count & rate */
+	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lanes);
+	dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate, max_rate);
 
 	if (!analogix_dp_bandwidth_ok(dp, &video->mode,
 				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
@@ -1447,7 +1321,7 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
 
-	if (num_modes > 0 && dp->plat_data->split_mode && !dp->plat_data->dual_channel_mode) {
+	if (num_modes > 0 && dp->plat_data->split_mode) {
 		struct drm_display_mode *mode;
 
 		list_for_each_entry(mode, &connector->probed_modes, head)
@@ -1514,7 +1388,6 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 		analogix_dp_panel_prepare(dp);
 
 	if (!analogix_dp_detect_hpd(dp)) {
-		/* Initialize by reading RX's DPCD */
 		ret = analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
 		if (ret) {
 			dev_err(dp->dev, "failed to read max link rate\n");
@@ -1569,32 +1442,6 @@ static void analogix_dp_connector_force(struct drm_connector *connector)
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
 }
 
-static int
-analogix_dp_atomic_connector_get_property(struct drm_connector *connector,
-					  const struct drm_connector_state *state,
-					  struct drm_property *property,
-					  uint64_t *val)
-{
-	struct rockchip_drm_private *private = connector->dev->dev_private;
-	struct analogix_dp_device *dp = to_dp(connector);
-
-	if (property == private->split_area_prop) {
-		switch (dp->split_area) {
-		case 1:
-			*val = ROCKCHIP_DRM_SPLIT_LEFT_SIDE;
-			break;
-		case 2:
-			*val = ROCKCHIP_DRM_SPLIT_RIGHT_SIDE;
-			break;
-		default:
-			*val = ROCKCHIP_DRM_SPLIT_UNSET;
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = analogix_dp_connector_detect,
@@ -1603,7 +1450,6 @@ static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.force = analogix_dp_connector_force,
-	.atomic_get_property = analogix_dp_atomic_connector_get_property,
 };
 
 static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
@@ -1634,7 +1480,6 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 
 	if (!dp->plat_data->skip_connector) {
 		int connector_type = DRM_MODE_CONNECTOR_eDP;
-		struct rockchip_drm_private *private;
 
 		if (dp->plat_data->bridge &&
 		    dp->plat_data->bridge->type != DRM_MODE_CONNECTOR_Unknown)
@@ -1653,13 +1498,6 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 			DRM_ERROR("Failed to initialize connector with drm\n");
 			return ret;
 		}
-
-		private = connector->dev->dev_private;
-
-		if (dp->split_area)
-			drm_object_attach_property(&connector->base,
-						   private->split_area_prop,
-						   dp->split_area);
 
 		drm_connector_helper_add(connector,
 					 &analogix_dp_connector_helper_funcs);
@@ -1737,17 +1575,13 @@ analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state;
 
 	crtc = analogix_dp_get_new_crtc(dp, old_state);
 	if (!crtc)
 		return;
 
 	old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
-
-	new_crtc_state = drm_atomic_get_new_crtc_state(old_state, crtc);
-	analogix_dp_bridge_mode_set(bridge, &new_crtc_state->adjusted_mode);
-
 	/* Don't touch the panel if we're coming back from PSR */
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		return;
@@ -1956,6 +1790,7 @@ analogix_dp_bridge_atomic_post_disable(struct drm_bridge *bridge,
 }
 
 static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
+				const struct drm_display_mode *orig_mode,
 				const struct drm_display_mode *adj_mode)
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
@@ -2041,6 +1876,29 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->interlaced = true;
 }
 
+static bool analogix_dp_link_config_validate(u8 link_rate, u8 lane_count)
+{
+	switch (link_rate) {
+	case DP_LINK_BW_1_62:
+	case DP_LINK_BW_2_7:
+	case DP_LINK_BW_5_4:
+		break;
+	default:
+		return false;
+	}
+
+	switch (lane_count) {
+	case 1:
+	case 2:
+	case 4:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 static enum drm_mode_status
 analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 			      const struct drm_display_info *info,
@@ -2052,7 +1910,7 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 
 	drm_mode_copy(&m, mode);
 
-	if (dp->plat_data->split_mode || dp->plat_data->dual_connector_split)
+	if (dp->plat_data->split_mode)
 		dp->plat_data->convert_to_origin_mode(&m);
 
 	max_link_rate = min_t(u32, dp->video_info.max_link_rate,
@@ -2076,6 +1934,7 @@ static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.atomic_enable = analogix_dp_bridge_atomic_enable,
 	.atomic_disable = analogix_dp_bridge_atomic_disable,
 	.atomic_post_disable = analogix_dp_bridge_atomic_post_disable,
+	.mode_set = analogix_dp_bridge_mode_set,
 	.attach = analogix_dp_bridge_attach,
 	.detach = analogix_dp_bridge_detach,
 	.mode_valid = analogix_dp_bridge_mode_valid,
@@ -2213,9 +2072,6 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		DRM_DEV_ERROR(dp->dev, "failed to read lane data\n");
 		return ret;
 	}
-
-	if (device_property_read_u32(dp->dev, "split-area", &dp->split_area))
-		dp->split_area = 0;
 
 	return 0;
 }

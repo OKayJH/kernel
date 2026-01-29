@@ -106,11 +106,6 @@
 	status = "okay";
 };
 
-&cpu0 {
-	/delete-property/ clocks;
-	/delete-property/ operating-points-v2;
-};
-
 &csi2_dphy_hw {
 	status = "okay";
 };
@@ -301,6 +296,8 @@
 };
 
 &sfc {
+	assigned-clocks = <&cru SCLK_SFC>;
+	assigned-clock-rates = <125000000>;
 	status = "okay";
 
 	flash@0 {

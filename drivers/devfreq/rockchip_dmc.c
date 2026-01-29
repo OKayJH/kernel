@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/clock/rockchip-ddr.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <drm/drm_modeset_lock.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
@@ -140,7 +141,6 @@ struct rockchip_dmcfreq {
 	unsigned long hdmirx_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
-	unsigned long deep_suspend_rate;
 	unsigned long reboot_rate;
 	unsigned long boost_rate;
 	unsigned long fixed_rate;
@@ -1284,11 +1284,9 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 	}
 
 	freq_table = kzalloc(sizeof(*freq_table) * count, GFP_KERNEL);
-	if (!freq_table)
-		return -ENOMEM;
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		ret = PTR_ERR(opp_table);
+	if (!opp_table) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -1331,7 +1329,7 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 				dmcfreq->freq_info_rate[i]);
 			if (i == 0) {
 				ret = -EPERM;
-				break;
+				goto out;
 			} else {
 				opp->available = false;
 				dmcfreq->freq_count = i;
@@ -1998,12 +1996,6 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 	if (of_property_read_u32(pdev->dev.of_node, "wait-mode", &ddr_psci_param->wait_mode))
 		ddr_psci_param->wait_mode = 0;
 
-	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0, ROCKCHIP_SIP_CONFIG_DRAM_GET_STALL_TIME);
-	if (res.a0)
-		dev_err(dmcfreq->dev, "Current ATF unsupported get_stall_time\n");
-	else
-		dmcfreq->info.stall_time_ns = (unsigned int)res.a1;
-
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
 	return 0;
@@ -2256,9 +2248,6 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 		case SYS_STATUS_SUSPEND:
 			dmcfreq->suspend_rate = freq * 1000;
 			break;
-		case SYS_STATUS_DEEP_SUSPEND:
-			dmcfreq->deep_suspend_rate = freq * 1000;
-			break;
 		case SYS_STATUS_VIDEO_1080P:
 			dmcfreq->video_1080p_rate = freq * 1000;
 			break;
@@ -2400,11 +2389,6 @@ static int rockchip_get_system_status_level(struct device_node *np,
 		case SYS_STATUS_SUSPEND:
 			dmcfreq->suspend_rate = rockchip_freq_level_2_rate(dmcfreq, level);
 			dev_info(dmcfreq->dev, "suspend_rate = %ld\n", dmcfreq->suspend_rate);
-			break;
-		case SYS_STATUS_DEEP_SUSPEND:
-			dmcfreq->deep_suspend_rate = rockchip_freq_level_2_rate(dmcfreq, level);
-			dev_info(dmcfreq->dev, "deep_suspend_rate = %ld\n",
-				 dmcfreq->deep_suspend_rate);
 			break;
 		case SYS_STATUS_VIDEO_1080P:
 			dmcfreq->video_1080p_rate = rockchip_freq_level_2_rate(dmcfreq, level);
@@ -3068,10 +3052,6 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 	if (rockchip_get_rl_map_talbe(np, "vop-pn-msch-readlatency",
 				      &dmcfreq->info.vop_pn_rl_tbl))
 		dev_err(dev, "failed to get vop pn to msch rl\n");
-	if (dmcfreq->video_4k_rate)
-		dmcfreq->info.vop_4k_rate = dmcfreq->video_4k_rate;
-	else if (dmcfreq->video_4k_10b_rate)
-		dmcfreq->info.vop_4k_rate = dmcfreq->video_4k_10b_rate;
 
 	of_property_read_u32(np, "touchboost_duration",
 			     (u32 *)&dmcfreq->touchboostpulse_duration_val);
@@ -3107,7 +3087,6 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 	devm_devfreq_register_opp_notifier(dev, devfreq);
 
 	devfreq->last_status.current_frequency = opp_rate;
-	devfreq->suspend_freq = dmcfreq->deep_suspend_rate;
 
 	reset_last_status(devfreq);
 

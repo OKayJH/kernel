@@ -413,11 +413,9 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 		usleep_range(30000, 30005);
 		loop--;
 	}
-
 	if (val != DEVICE_ID) {
 		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
-		ret = -ENODEV;
-		goto err_nodev;
+		return -ENODEV;
 	}
 
 	rt5682_calibrate(rt5682);
@@ -488,11 +486,10 @@ reinit:
 	rt5682->hw_init = true;
 	rt5682->first_hw_init = true;
 
-err_nodev:
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
-	dev_dbg(&slave->dev, "%s hw_init complete: %d\n", __func__, ret);
+	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);
 
 	return ret;
 }

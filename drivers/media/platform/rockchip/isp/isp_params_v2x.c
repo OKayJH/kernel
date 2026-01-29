@@ -461,12 +461,6 @@ isp_sihst_config(struct rkisp_isp_params_vdev *params_vdev,
 	};
 
 	wnd_num_idx = arg->wnd_num;
-	if (wnd_num_idx >= ARRAY_SIZE(hist_wnd_num)) {
-		wnd_num_idx = ARRAY_SIZE(hist_wnd_num) - 1;
-		dev_err(params_vdev->dev->dev,
-			"%s invalid wnd_num:%d, set to %d\n",
-			__func__, arg->wnd_num, wnd_num_idx);
-	}
 	for (i = 0; i < ISP2X_SIHIST_WIN_NUM; i++) {
 		/* avoid to override the old enable value */
 		hist_ctrl = rkisp_ioread32(params_vdev, ISP_HIST_HIST_CTRL + i * 0x10);
@@ -542,9 +536,10 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 {
 	int i, j;
 	unsigned int sram_addr;
-	unsigned int data = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
+	unsigned int data;
 
-	if (is_check && (data & ISP_LSC_LUT_EN || !(data & ISP_LSC_EN)))
+	if (is_check &&
+	    !(rkisp_ioread32(params_vdev, ISP_LSC_CTRL) & ISP_LSC_EN))
 		return;
 
 	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
@@ -684,13 +679,12 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	 * readback mode lsc lut AHB config to sram, once for single device,
 	 * need record to switch for multi-device.
 	 */
-	if (!IS_HDR_RDBK(dev->rd_mode)) {
+	if (!IS_HDR_RDBK(dev->rd_mode))
 		isp_lsc_matrix_cfg_ddr(params_vdev, arg);
-	} else {
+	else if (dev->hw_dev->is_single)
+		isp_lsc_matrix_cfg_sram(params_vdev, arg, false);
+	else
 		params_rec->others.lsc_cfg = *arg;
-		if (dev->hw_dev->is_single)
-			isp_lsc_matrix_cfg_sram(params_vdev, arg, false);
-	}
 
 	for (i = 0; i < 4; i++) {
 		/* program x size tables */
@@ -1764,12 +1758,6 @@ isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 		   ISP2X_REG_WR_MASK);
 
 	wnd_num_idx = arg->wnd_num;
-	if (wnd_num_idx >= ARRAY_SIZE(ae_wnd_num)) {
-		wnd_num_idx = ARRAY_SIZE(ae_wnd_num) - 1;
-		dev_err(params_vdev->dev->dev,
-			"%s invalid wnd_num:%d, set to %d\n",
-			__func__, arg->wnd_num, wnd_num_idx);
-	}
 	value |= ISP2X_RAWAEBIG_WNDNUM_SET(wnd_num_idx);
 
 	if (arg->subwin_en[0])
@@ -2843,12 +2831,6 @@ isp_rawhstbig_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		return;
 
 	wnd_num_idx = arg->wnd_num;
-	if (wnd_num_idx >= ARRAY_SIZE(hist_wnd_num)) {
-		wnd_num_idx = ARRAY_SIZE(hist_wnd_num) - 1;
-		dev_err(params_vdev->dev->dev,
-			"%s invalid wnd_num:%d, set to %d\n",
-			__func__, arg->wnd_num, wnd_num_idx);
-	}
 	memset(weight15x15, 0, sizeof(weight15x15));
 	for (i = 0; i < hist_wnd_num[wnd_num_idx]; i++) {
 		for (j = 0; j < hist_wnd_num[wnd_num_idx]; j++) {
@@ -2897,12 +2879,6 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 
 	wnd_num_idx = arg->wnd_num;
-	if (wnd_num_idx >= ARRAY_SIZE(hist_wnd_num)) {
-		wnd_num_idx = ARRAY_SIZE(hist_wnd_num) - 1;
-		dev_err(params_vdev->dev->dev,
-			"%s invalid wnd_num:%d, set to %d\n",
-			__func__, arg->wnd_num, wnd_num_idx);
-	}
 	/* avoid to override the old enable value */
 	hist_ctrl = rkisp_ioread32(params_vdev, addr + ISP_RAWHIST_BIG_CTRL);
 	hist_ctrl &= ISP2X_RAWHSTBIG_CTRL_EN_MASK;
@@ -2934,7 +2910,8 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (dev->hw_dev->is_single)
 		isp_rawhstbig_cfg_sram(params_vdev, arg, blk_no, false);
-	*arg_rec = *arg;
+	else
+		*arg_rec = *arg;
 }
 
 static void
@@ -4061,7 +4038,7 @@ void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
 }
 
 static
-void rkisp_params_cfgsram_v2x(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
+void rkisp_params_cfgsram_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct isp2x_isp_params_cfg *params = params_vdev->isp2x_params;
 
@@ -4196,7 +4173,6 @@ rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			 unsigned int sizes[])
 {
 	sizes[0] = sizeof(struct isp2x_isp_params_cfg);
-	params_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
 static void

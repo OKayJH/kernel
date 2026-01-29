@@ -1653,8 +1653,6 @@ u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 		return SPEED_50000;
 	case BNXT_LINK_SPEED_100GB:
 		return SPEED_100000;
-	case BNXT_LINK_SPEED_200GB:
-		return SPEED_200000;
 	default:
 		return SPEED_UNKNOWN;
 	}
@@ -3440,7 +3438,7 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		}
 	}
 
-	if (!BNXT_CHIP_P4_PLUS(bp) && (req & BNXT_FW_RESET_AP)) {
+	if (req & BNXT_FW_RESET_AP) {
 		/* This feature is not supported in older firmware versions */
 		if (bp->hwrm_spec_code >= 0x10803) {
 			if (!bnxt_firmware_reset_ap(dev)) {

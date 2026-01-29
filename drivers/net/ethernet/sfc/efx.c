@@ -105,6 +105,14 @@ static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 			u32 flags);
 
+#define EFX_ASSERT_RESET_SERIALISED(efx)		\
+	do {						\
+		if ((efx->state == STATE_READY) ||	\
+		    (efx->state == STATE_RECOVERY) ||	\
+		    (efx->state == STATE_DISABLED))	\
+			ASSERT_RTNL();			\
+	} while (0)
+
 /**************************************************************************
  *
  * Port handling
@@ -369,8 +377,6 @@ static int efx_probe_all(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	efx->state = STATE_NET_DOWN;
-
 	return 0;
 
  fail5:
@@ -537,9 +543,7 @@ int efx_net_open(struct net_device *net_dev)
 	efx_start_all(efx);
 	if (efx->state == STATE_DISABLED || efx->reset_pending)
 		netif_device_detach(efx->net_dev);
-	else
-		efx->state = STATE_NET_UP;
-
+	efx_selftest_async_start(efx);
 	return 0;
 }
 
@@ -717,6 +721,8 @@ static int efx_register_netdev(struct efx_nic *efx)
 	 * already requested.  If so, the NIC is probably hosed so we
 	 * abort.
 	 */
+	efx->state = STATE_READY;
+	smp_mb(); /* ensure we change state before checking reset_pending */
 	if (efx->reset_pending) {
 		netif_err(efx, probe, efx->net_dev,
 			  "aborting probe due to scheduled reset\n");
@@ -743,8 +749,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 	}
 
 	efx_associate(efx);
-
-	efx->state = STATE_NET_DOWN;
 
 	rtnl_unlock();
 
@@ -847,7 +851,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	/* Flush reset_work. It can no longer be scheduled since we
 	 * are not READY.
 	 */
-	WARN_ON(efx_net_active(efx->state));
+	BUG_ON(efx->state == STATE_READY);
 	efx_flush_reset_workqueue(efx);
 
 	efx_disable_interrupts(efx);
@@ -1041,18 +1045,18 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 	}
 
 	/* Determine netdevice features */
-	net_dev->features |= efx->type->offload_features;
-
-	/* Add TSO features */
-	if (efx->type->tso_versions && efx->type->tso_versions(efx))
-		net_dev->features |= NETIF_F_TSO | NETIF_F_TSO6;
-
+	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
+			      NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_RXALL);
+	if (efx->type->offload_features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
+		net_dev->features |= NETIF_F_TSO6;
+	/* Check whether device supports TSO */
+	if (!efx->type->tso_versions || !efx->type->tso_versions(efx))
+		net_dev->features &= ~NETIF_F_ALL_TSO;
 	/* Mask for features that also apply to VLAN devices */
 	net_dev->vlan_features |= (NETIF_F_HW_CSUM | NETIF_F_SG |
 				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO |
 				   NETIF_F_RXCSUM);
 
-	/* Determine user configurable features */
 	net_dev->hw_features |= net_dev->features & ~efx->fixed_features;
 
 	/* Disable receiving frames with bad FCS, by default. */
@@ -1192,13 +1196,13 @@ static int efx_pm_freeze(struct device *dev)
 
 	rtnl_lock();
 
-	if (efx_net_active(efx->state)) {
+	if (efx->state != STATE_DISABLED) {
+		efx->state = STATE_UNINIT;
+
 		efx_device_detach_sync(efx);
 
 		efx_stop_all(efx);
 		efx_disable_interrupts(efx);
-
-		efx->state = efx_freeze(efx->state);
 	}
 
 	rtnl_unlock();
@@ -1213,7 +1217,7 @@ static int efx_pm_thaw(struct device *dev)
 
 	rtnl_lock();
 
-	if (efx_frozen(efx->state)) {
+	if (efx->state != STATE_DISABLED) {
 		rc = efx_enable_interrupts(efx);
 		if (rc)
 			goto fail;
@@ -1226,7 +1230,7 @@ static int efx_pm_thaw(struct device *dev)
 
 		efx_device_attach_if_not_resetting(efx);
 
-		efx->state = efx_thaw(efx->state);
+		efx->state = STATE_READY;
 
 		efx->type->resume_wol(efx);
 	}

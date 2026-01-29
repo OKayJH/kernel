@@ -15,8 +15,6 @@
 		backlight = <&backlight>;
 		enable-gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_HIGH>;
 		prepare-delay-ms = <120>;
-		width-mm = <120>;
-		height-mm = <160>;
 
 		display-timings {
 			native-mode = <&timing0>;

@@ -31,15 +31,11 @@
 #define VOP_VERSION_RK3568	VOP2_VERSION(0x40, 0x15, 0x8023)
 #define VOP_VERSION_RK3588	VOP2_VERSION(0x40, 0x17, 0x6786)
 
-/* register one connector */
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE	BIT(0)
-/* register one connector */
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE	BIT(1)
 #define ROCKCHIP_OUTPUT_DATA_SWAP			BIT(2)
 /* MIPI DSI DataStream(cmd) mode on rk3588 */
 #define ROCKCHIP_OUTPUT_MIPI_DS_MODE			BIT(3)
-/* register two connector */
-#define ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE	BIT(4)
 
 #define AFBDC_FMT_RGB565	0x0
 #define AFBDC_FMT_U8U8U8U8	0x5
@@ -89,6 +85,14 @@ enum vop_vp_id {
 	ROCKCHIP_VOP_VP1,
 	ROCKCHIP_VOP_VP2,
 	ROCKCHIP_VOP_VP3,
+};
+
+enum vop_win_phy_id {
+	ROCKCHIP_VOP_WIN0 = 0,
+	ROCKCHIP_VOP_WIN1,
+	ROCKCHIP_VOP_WIN2,
+	ROCKCHIP_VOP_WIN3,
+	ROCKCHIP_VOP_PHY_ID_INVALID = -1,
 };
 
 enum bcsh_out_mode {
@@ -591,6 +595,37 @@ enum vop_hdr_format {
 	RESERVED12 = 12,	/* reserved for other dynamic hdr format */
 	RESERVED13 = 13,	/* reserved for other dynamic hdr format */
 	HDR_FORMAT_MAX,
+};
+
+#define ACM_GAIN_LUT_HY_LENGTH		(9*17)
+#define ACM_GAIN_LUT_HY_TOTAL_LENGTH	(ACM_GAIN_LUT_HY_LENGTH * 3)
+#define ACM_GAIN_LUT_HS_LENGTH		(13*17)
+#define ACM_GAIN_LUT_HS_TOTAL_LENGTH (ACM_GAIN_LUT_HS_LENGTH * 3)
+#define ACM_DELTA_LUT_H_LENGTH		65
+#define ACM_DELTA_LUT_H_TOTAL_LENGTH	(ACM_DELTA_LUT_H_LENGTH * 3)
+
+struct post_acm {
+	s16 delta_lut_h[ACM_DELTA_LUT_H_TOTAL_LENGTH];
+	s16 gain_lut_hy[ACM_GAIN_LUT_HY_TOTAL_LENGTH];
+	s16 gain_lut_hs[ACM_GAIN_LUT_HS_TOTAL_LENGTH];
+	u16 y_gain;
+	u16 h_gain;
+	u16 s_gain;
+	u16 acm_enable;
+};
+
+struct post_csc {
+	u16 hue;
+	u16 saturation;
+	u16 contrast;
+	u16 brightness;
+	u16 r_gain;
+	u16 g_gain;
+	u16 b_gain;
+	u16 r_offset;
+	u16 g_offset;
+	u16 b_offset;
+	u16 csc_enable;
 };
 
 struct post_csc_coef {
@@ -1099,7 +1134,6 @@ struct vop2_video_port_data {
 	char id;
 	uint8_t splice_vp_id;
 	uint16_t lut_dma_rid;
-	uint32_t dclk_switch_id;
 	uint32_t feature;
 	uint64_t soc_id[VOP2_SOC_VARIANT];
 	uint16_t gamma_lut_len;
@@ -1297,7 +1331,6 @@ struct vop_dump_regs {
 	const char *name;
 	struct vop_reg state;
 	bool enable_state;
-	uint32_t size;
 };
 
 struct vop2_vp_plane_mask {
@@ -1347,7 +1380,6 @@ struct vop2_data {
 	const struct vop_grf_ctrl *vo0_grf;
 	const struct vop_grf_ctrl *vo1_grf;
 	const struct vop_dump_regs *dump_regs;
-	const struct vop_mcu_bypass_cfg *mcu_bypass_cfg;
 	uint32_t dump_regs_size;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
@@ -1429,9 +1461,7 @@ struct vop2_data {
 #define ROCKCHIP_OUT_MODE_P565		2
 #define ROCKCHIP_OUT_MODE_BT656		5
 #define ROCKCHIP_OUT_MODE_S888		8
-#define ROCKCHIP_OUT_MODE_S666		9
 #define ROCKCHIP_OUT_MODE_YUV422	9
-#define ROCKCHIP_OUT_MODE_S565		10
 #define ROCKCHIP_OUT_MODE_S888_DUMMY	12
 #define ROCKCHIP_OUT_MODE_YUV420	14
 /* for use special outface */

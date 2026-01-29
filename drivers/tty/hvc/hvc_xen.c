@@ -52,22 +52,17 @@ static DEFINE_SPINLOCK(xencons_lock);
 
 static struct xencons_info *vtermno_to_xencons(int vtermno)
 {
-	struct xencons_info *entry, *ret = NULL;
-	unsigned long flags;
+	struct xencons_info *entry, *n, *ret = NULL;
 
-	spin_lock_irqsave(&xencons_lock, flags);
-	if (list_empty(&xenconsoles)) {
-		spin_unlock_irqrestore(&xencons_lock, flags);
-		return NULL;
-	}
+	if (list_empty(&xenconsoles))
+			return NULL;
 
-	list_for_each_entry(entry, &xenconsoles, list) {
+	list_for_each_entry_safe(entry, n, &xenconsoles, list) {
 		if (entry->vtermno == vtermno) {
 			ret  = entry;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&xencons_lock, flags);
 
 	return ret;
 }
@@ -228,7 +223,7 @@ static int xen_hvm_console_init(void)
 {
 	int r;
 	uint64_t v = 0;
-	unsigned long gfn, flags;
+	unsigned long gfn;
 	struct xencons_info *info;
 
 	if (!xen_hvm_domain())
@@ -263,9 +258,9 @@ static int xen_hvm_console_init(void)
 		goto err;
 	info->vtermno = HVC_COOKIE;
 
-	spin_lock_irqsave(&xencons_lock, flags);
+	spin_lock(&xencons_lock);
 	list_add_tail(&info->list, &xenconsoles);
-	spin_unlock_irqrestore(&xencons_lock, flags);
+	spin_unlock(&xencons_lock);
 
 	return 0;
 err:
@@ -288,7 +283,6 @@ static int xencons_info_pv_init(struct xencons_info *info, int vtermno)
 static int xen_pv_console_init(void)
 {
 	struct xencons_info *info;
-	unsigned long flags;
 
 	if (!xen_pv_domain())
 		return -ENODEV;
@@ -305,9 +299,9 @@ static int xen_pv_console_init(void)
 		/* already configured */
 		return 0;
 	}
-	spin_lock_irqsave(&xencons_lock, flags);
+	spin_lock(&xencons_lock);
 	xencons_info_pv_init(info, HVC_COOKIE);
-	spin_unlock_irqrestore(&xencons_lock, flags);
+	spin_unlock(&xencons_lock);
 
 	return 0;
 }
@@ -315,7 +309,6 @@ static int xen_pv_console_init(void)
 static int xen_initial_domain_console_init(void)
 {
 	struct xencons_info *info;
-	unsigned long flags;
 
 	if (!xen_initial_domain())
 		return -ENODEV;
@@ -330,9 +323,9 @@ static int xen_initial_domain_console_init(void)
 	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
 	info->vtermno = HVC_COOKIE;
 
-	spin_lock_irqsave(&xencons_lock, flags);
+	spin_lock(&xencons_lock);
 	list_add_tail(&info->list, &xenconsoles);
-	spin_unlock_irqrestore(&xencons_lock, flags);
+	spin_unlock(&xencons_lock);
 
 	return 0;
 }
@@ -363,21 +356,18 @@ void xen_console_resume(void)
 #ifdef CONFIG_HVC_XEN_FRONTEND
 static void xencons_disconnect_backend(struct xencons_info *info)
 {
-	if (info->hvc != NULL)
-		hvc_remove(info->hvc);
-	info->hvc = NULL;
-	if (info->irq > 0) {
-		evtchn_put(info->evtchn);
-		info->irq = 0;
-		info->evtchn = 0;
-	}
-	/* evtchn_put() will also close it so this is only an error path */
+	if (info->irq > 0)
+		unbind_from_irqhandler(info->irq, NULL);
+	info->irq = 0;
 	if (info->evtchn > 0)
 		xenbus_free_evtchn(info->xbdev, info->evtchn);
 	info->evtchn = 0;
 	if (info->gntref > 0)
 		gnttab_free_grant_references(info->gntref);
 	info->gntref = 0;
+	if (info->hvc != NULL)
+		hvc_remove(info->hvc);
+	info->hvc = NULL;
 }
 
 static void xencons_free(struct xencons_info *info)
@@ -390,12 +380,10 @@ static void xencons_free(struct xencons_info *info)
 
 static int xen_console_remove(struct xencons_info *info)
 {
-	unsigned long flags;
-
 	xencons_disconnect_backend(info);
-	spin_lock_irqsave(&xencons_lock, flags);
+	spin_lock(&xencons_lock);
 	list_del(&info->list);
-	spin_unlock_irqrestore(&xencons_lock, flags);
+	spin_unlock(&xencons_lock);
 	if (info->xbdev != NULL)
 		xencons_free(info);
 	else {
@@ -476,7 +464,6 @@ static int xencons_probe(struct xenbus_device *dev,
 {
 	int ret, devid;
 	struct xencons_info *info;
-	unsigned long flags;
 
 	devid = dev->nodename[strlen(dev->nodename) - 1] - '0';
 	if (devid == 0)
@@ -495,9 +482,9 @@ static int xencons_probe(struct xenbus_device *dev,
 	ret = xencons_connect_backend(dev, info);
 	if (ret < 0)
 		goto error;
-	spin_lock_irqsave(&xencons_lock, flags);
+	spin_lock(&xencons_lock);
 	list_add_tail(&info->list, &xenconsoles);
-	spin_unlock_irqrestore(&xencons_lock, flags);
+	spin_unlock(&xencons_lock);
 
 	return 0;
 
@@ -541,22 +528,9 @@ static void xencons_backend_changed(struct xenbus_device *dev,
 		if (dev->state == XenbusStateClosed)
 			break;
 		fallthrough;	/* Missed the backend's CLOSING state */
-	case XenbusStateClosing: {
-		struct xencons_info *info = dev_get_drvdata(&dev->dev);;
-
-		/*
-		 * Don't tear down the evtchn and grant ref before the other
-		 * end has disconnected, but do stop userspace from trying
-		 * to use the device before we allow the backend to close.
-		 */
-		if (info->hvc) {
-			hvc_remove(info->hvc);
-			info->hvc = NULL;
-		}
-
+	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;
-	}
 	}
 }
 
@@ -588,7 +562,7 @@ static int __init xen_hvc_init(void)
 		ops = &dom0_hvc_ops;
 		r = xen_initial_domain_console_init();
 		if (r < 0)
-			goto register_fe;
+			return r;
 		info = vtermno_to_xencons(HVC_COOKIE);
 	} else {
 		ops = &domU_hvc_ops;
@@ -597,7 +571,7 @@ static int __init xen_hvc_init(void)
 		else
 			r = xen_pv_console_init();
 		if (r < 0)
-			goto register_fe;
+			return r;
 
 		info = vtermno_to_xencons(HVC_COOKIE);
 		info->irq = bind_evtchn_to_irq_lateeoi(info->evtchn);
@@ -609,20 +583,17 @@ static int __init xen_hvc_init(void)
 
 	info->hvc = hvc_alloc(HVC_COOKIE, info->irq, ops, 256);
 	if (IS_ERR(info->hvc)) {
-		unsigned long flags;
-
 		r = PTR_ERR(info->hvc);
-		spin_lock_irqsave(&xencons_lock, flags);
+		spin_lock(&xencons_lock);
 		list_del(&info->list);
-		spin_unlock_irqrestore(&xencons_lock, flags);
+		spin_unlock(&xencons_lock);
 		if (info->irq)
-			evtchn_put(info->evtchn);
+			unbind_from_irqhandler(info->irq, NULL);
 		kfree(info);
 		return r;
 	}
 
 	r = 0;
- register_fe:
 #ifdef CONFIG_HVC_XEN_FRONTEND
 	r = xenbus_register_frontend(&xencons_driver);
 #endif

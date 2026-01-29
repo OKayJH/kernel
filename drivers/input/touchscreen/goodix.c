@@ -119,38 +119,37 @@ struct goodix_ts_data {
 };
 
 struct entry {
-    u32 offset;
-    u32 length;
+	u32 offset;
+	u32 length;
 };
 
 /**
- * @magic: LCD config firmware magic number. 
- * @vendor: LCD vendor name.
- * @model: LCD model name.
- * @version: LCD config firmware version.
- * @timing_entry: Entry of timing table.
- * @init_seq_entry: Entry of init sequence.
- * @eixt_seq_entry: Entry of exit sequence.
- * @touchscreen_entry: Entry of touchscreen properties.
- * @firmware_size: Firmware size.
- */
+* @magic: LCD config firmware magic number. 
+* @vendor: LCD vendor name.
+* @model: LCD model name.
+* @version: LCD config firmware version.
+* @timing_entry: Entry of timing table.
+* @init_seq_entry: Entry of init sequence.
+* @eixt_seq_entry: Entry of exit sequence.
+* @touchscreen_entry: Entry of touchscreen properties.
+* @firmware_size: Firmware size.
+*/
 struct firmware_header {
 	u32 magic;
-    u8 vendor[16];
-    u8 model[32];
-    u8 version[8];
-    struct entry timing_entry;
-    struct entry init_seq_entry;
+	u8 vendor[16];
+	u8 model[32];
+	u8 version[8];
+	struct entry timing_entry;
+	struct entry init_seq_entry;
 	struct entry eixt_seq_entry;
 	struct entry touchscreen_entry;
 	u32 firmware_size;
 };
 
-
 static int goodix_check_cfg_8(struct goodix_ts_data *ts,
-			      const u8 *cfg, int len);
+				const u8 *cfg, int len);
 static int goodix_check_cfg_16(struct goodix_ts_data *ts,
-			       const u8 *cfg, int len);
+				const u8 *cfg, int len);
 static void goodix_calc_cfg_checksum_8(struct goodix_ts_data *ts);
 static void goodix_calc_cfg_checksum_16(struct goodix_ts_data *ts);
 
@@ -213,18 +212,10 @@ static const unsigned long goodix_irq_flags[] = {
 static const struct dmi_system_id nine_bytes_report[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
-		/* Lenovo Yoga Book X90F / X90L */
+		.ident = "Lenovo YogaBook",
+		/* YB1-X91L/F and YB1-X90L/F */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
-		}
-	},
-	{
-		/* Lenovo Yoga Book X91F / X91L */
-		.matches = {
-			/* Non exact match to match F + L versions */
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9")
 		}
 	},
 #endif

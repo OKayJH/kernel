@@ -5,8 +5,6 @@
 
 menu "Misc devices"
 
-source "drivers/misc/rk628/Kconfig"
-
 config RK803
 	tristate "RK803"
 	default n

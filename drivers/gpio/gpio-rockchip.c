@@ -28,7 +28,6 @@
 #define GPIO_TYPE_V1		(0)           /* GPIO Version ID reserved */
 #define GPIO_TYPE_V2		(0x01000C2B)  /* GPIO Version ID 0x01000C2B */
 #define GPIO_TYPE_V2_1		(0x0101157C)  /* GPIO Version ID 0x0101157C */
-#define GPIO_TYPE_V2_2		(0x010219C8)  /* GPIO Version ID 0x010219C8 */
 
 #define GPIO_MAX_PINS	(32)
 
@@ -275,18 +274,11 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 				  unsigned long config)
 {
 	enum pin_config_param param = pinconf_to_config_param(config);
-	unsigned int debounce;
-	int ret = -ENOTSUPP;
+	unsigned int debounce = pinconf_to_config_argument(config);
 
 	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		ret = gpiochip_generic_config(gc, offset, config);
-		break;
 	case PIN_CONFIG_INPUT_DEBOUNCE:
-		debounce = pinconf_to_config_argument(config);
-		ret = rockchip_gpio_set_debounce(gc, offset, debounce);
+		rockchip_gpio_set_debounce(gc, offset, debounce);
 		/*
 		 * Rockchip's gpio could only support up to one period
 		 * of the debounce clock(pclk), which is far away from
@@ -298,12 +290,10 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		 * still return -ENOTSUPP as before, to make sure the caller
 		 * of gpiod_set_debounce won't change its behaviour.
 		 */
-		break;
+		return -ENOTSUPP;
 	default:
-		break;
+		return -ENOTSUPP;
 	}
-
-	return ret;
 }
 
 /*
@@ -427,8 +417,10 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	level = rockchip_gpio_readl(bank, bank->gpio_regs->int_type);
 	polarity = rockchip_gpio_readl(bank, bank->gpio_regs->int_polarity);
 
-	if (type == IRQ_TYPE_EDGE_BOTH) {
+	switch (type) {
+	case IRQ_TYPE_EDGE_BOTH:
 		if (bank->gpio_type == GPIO_TYPE_V2) {
+			bank->toggle_edge_mode &= ~mask;
 			rockchip_gpio_writel_bit(bank, d->hwirq, 1,
 						 bank->gpio_regs->int_bothedge);
 			goto out;
@@ -446,34 +438,30 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 			else
 				polarity |= mask;
 		}
-	} else {
-		if (bank->gpio_type == GPIO_TYPE_V2) {
-			rockchip_gpio_writel_bit(bank, d->hwirq, 0,
-						 bank->gpio_regs->int_bothedge);
-		} else {
-			bank->toggle_edge_mode &= ~mask;
-		}
-		switch (type) {
-		case IRQ_TYPE_EDGE_RISING:
-			level |= mask;
-			polarity |= mask;
-			break;
-		case IRQ_TYPE_EDGE_FALLING:
-			level |= mask;
-			polarity &= ~mask;
-			break;
-		case IRQ_TYPE_LEVEL_HIGH:
-			level &= ~mask;
-			polarity |= mask;
-			break;
-		case IRQ_TYPE_LEVEL_LOW:
-			level &= ~mask;
-			polarity &= ~mask;
-			break;
-		default:
-			ret = -EINVAL;
-			goto out;
-		}
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		bank->toggle_edge_mode &= ~mask;
+		level |= mask;
+		polarity |= mask;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		bank->toggle_edge_mode &= ~mask;
+		level |= mask;
+		polarity &= ~mask;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+		bank->toggle_edge_mode &= ~mask;
+		level &= ~mask;
+		polarity |= mask;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		bank->toggle_edge_mode &= ~mask;
+		level &= ~mask;
+		polarity &= ~mask;
+		break;
+	default:
+		ret = -EINVAL;
+		goto out;
 	}
 
 	rockchip_gpio_writel(bank, level, bank->gpio_regs->int_type);
@@ -621,17 +609,13 @@ static void rockchip_gpio_get_ver(struct rockchip_pin_bank *bank)
 {
 	int id = readl(bank->reg_base + gpio_regs_v2.version_id);
 
-	switch (id) {
-	case GPIO_TYPE_V2:
-	case GPIO_TYPE_V2_1:
-	case GPIO_TYPE_V2_2:
+	/* If not gpio v2, that is default to v1. */
+	if (id == GPIO_TYPE_V2 || id == GPIO_TYPE_V2_1) {
 		bank->gpio_regs = &gpio_regs_v2;
 		bank->gpio_type = GPIO_TYPE_V2;
-		break;
-	default:
+	} else {
 		bank->gpio_regs = &gpio_regs_v1;
 		bank->gpio_type = GPIO_TYPE_V1;
-		pr_info("Note: Use default GPIO_TYPE_V1!\n");
 	}
 }
 

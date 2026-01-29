@@ -203,9 +203,9 @@ int smc_rx_wait(struct smc_sock *smc, long *timeo,
 	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	add_wait_queue(sk_sleep(sk), &wait);
 	rc = sk_wait_event(sk, timeo,
-			   READ_ONCE(sk->sk_err) ||
+			   sk->sk_err ||
 			   cflags->peer_conn_abort ||
-			   READ_ONCE(sk->sk_shutdown) & RCV_SHUTDOWN ||
+			   sk->sk_shutdown & RCV_SHUTDOWN ||
 			   conn->killed ||
 			   fcrit(conn),
 			   &wait);

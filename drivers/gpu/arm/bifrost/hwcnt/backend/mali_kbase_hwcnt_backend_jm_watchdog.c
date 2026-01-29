@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -268,9 +268,9 @@ kbasep_hwcnt_backend_jm_watchdog_info_create(struct kbase_hwcnt_backend_interfac
 	if (!info)
 		return NULL;
 
-	*info = (struct kbase_hwcnt_backend_jm_watchdog_info){
-		.jm_backend_iface = backend_iface, .dump_watchdog_iface = watchdog_iface
-	};
+	*info = (struct kbase_hwcnt_backend_jm_watchdog_info){ .jm_backend_iface = backend_iface,
+							       .dump_watchdog_iface =
+								       watchdog_iface };
 
 	return info;
 }
@@ -315,14 +315,6 @@ kbasep_hwcnt_backend_jm_watchdog_term_partial(struct kbase_hwcnt_backend_jm_watc
 	}
 
 	kfree(wd_backend);
-}
-
-static void kbasep_hwcnt_backend_jm_watchdog_acquire(const struct kbase_hwcnt_backend *backend)
-{
-}
-
-static void kbasep_hwcnt_backend_jm_watchdog_release(const struct kbase_hwcnt_backend *backend)
-{
 }
 
 /* Job manager watchdog backend, implementation of kbase_hwcnt_backend_term_fn
@@ -451,8 +443,7 @@ static int kbasep_hwcnt_backend_jm_watchdog_dump_enable_common(
 			spin_unlock_irqrestore(&wd_backend->locked.watchdog_lock, flags);
 		} else
 			/*Reverting the job manager backend back to disabled*/
-			wd_backend->info->jm_backend_iface->dump_disable(wd_backend->jm_backend,
-									 NULL, NULL);
+			wd_backend->info->jm_backend_iface->dump_disable(wd_backend->jm_backend);
 	}
 
 	return errcode;
@@ -481,10 +472,7 @@ kbasep_hwcnt_backend_jm_watchdog_dump_enable_nolock(struct kbase_hwcnt_backend *
 }
 
 /* Job manager watchdog backend, implementation of dump_disable */
-static void
-kbasep_hwcnt_backend_jm_watchdog_dump_disable(struct kbase_hwcnt_backend *backend,
-					      struct kbase_hwcnt_dump_buffer *dump_buffer,
-					      const struct kbase_hwcnt_enable_map *buf_enable_map)
+static void kbasep_hwcnt_backend_jm_watchdog_dump_disable(struct kbase_hwcnt_backend *backend)
 {
 	struct kbase_hwcnt_backend_jm_watchdog *const wd_backend = (void *)backend;
 	unsigned long flags;
@@ -509,8 +497,7 @@ kbasep_hwcnt_backend_jm_watchdog_dump_disable(struct kbase_hwcnt_backend *backen
 	wd_backend->info->dump_watchdog_iface->disable(
 		wd_backend->info->dump_watchdog_iface->timer);
 
-	wd_backend->info->jm_backend_iface->dump_disable(wd_backend->jm_backend, dump_buffer,
-							 buf_enable_map);
+	wd_backend->info->jm_backend_iface->dump_disable(wd_backend->jm_backend);
 }
 
 /* Job manager watchdog backend, implementation of dump_clear */
@@ -815,8 +802,6 @@ int kbase_hwcnt_backend_jm_watchdog_create(struct kbase_hwcnt_backend_interface 
 		.metadata = kbasep_hwcnt_backend_jm_watchdog_metadata,
 		.init = kbasep_hwcnt_backend_jm_watchdog_init,
 		.term = kbasep_hwcnt_backend_jm_watchdog_term,
-		.acquire = kbasep_hwcnt_backend_jm_watchdog_acquire,
-		.release = kbasep_hwcnt_backend_jm_watchdog_release,
 		.timestamp_ns = kbasep_hwcnt_backend_jm_watchdog_timestamp_ns,
 		.dump_enable = kbasep_hwcnt_backend_jm_watchdog_dump_enable,
 		.dump_enable_nolock = kbasep_hwcnt_backend_jm_watchdog_dump_enable_nolock,

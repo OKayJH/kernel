@@ -26,10 +26,6 @@
 
 	aliases {
 		ethernet0 = &gmac;
-		gpio0 = &gpio0;
-		gpio1 = &gpio1;
-		gpio2 = &gpio2;
-		gpio3 = &gpio3;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -648,7 +644,7 @@
 			status = "disabled";
 		};
 
-		reboot_mode: reboot-mode {
+		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x200>;
 			mode-bootloader = <BOOT_BL_DOWNLOAD>;
@@ -743,25 +739,6 @@
 		pinctrl-0 = <&i2s2_2ch_sclk &i2s2_2ch_lrck
 			     &i2s2_2ch_sdi &i2s2_2ch_sdo>;
 		#sound-dai-cells = <0>;
-		status = "disabled";
-	};
-
-	pdm: pdm@ff0a0000 {
-		compatible = "rockchip,px30-pdm";
-		reg = <0x0 0xff0a0000 0x0 0x1000>;
-		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
-		clock-names = "pdm_clk", "pdm_hclk";
-		dmas = <&dmac 24>;
-		dma-names = "rx";
-		resets = <&cru SRST_PDM>;
-		reset-names = "pdm-m";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pdm_clk0m0
-			     &pdm_clk1
-			     &pdm_sdi0m0
-			     &pdm_sdi1
-			     &pdm_sdi2
-			     &pdm_sdi3>;
 		status = "disabled";
 	};
 
@@ -1035,7 +1012,6 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 12>, <&dmac 13>;
 		dma-names = "tx", "rx";
-		num-cs = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi0_clk &spi0_csn &spi0_miso &spi0_mosi>;
 		#address-cells = <1>;
@@ -1051,7 +1027,6 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 14>, <&dmac 15>;
 		dma-names = "tx", "rx";
-		num-cs = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
 		#address-cells = <1>;
@@ -1070,7 +1045,6 @@
 	pwm0: pwm@ff200000 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200000 0x0 0x10>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1082,7 +1056,6 @@
 	pwm1: pwm@ff200010 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200010 0x0 0x10>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1094,7 +1067,6 @@
 	pwm2: pwm@ff200020 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200020 0x0 0x10>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1106,8 +1078,6 @@
 	pwm3: pwm@ff200030 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200030 0x0 0x10>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1119,7 +1089,6 @@
 	pwm4: pwm@ff208000 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208000 0x0 0x10>;
-		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1131,7 +1100,6 @@
 	pwm5: pwm@ff208010 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208010 0x0 0x10>;
-		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1143,7 +1111,6 @@
 	pwm6: pwm@ff208020 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208020 0x0 0x10>;
-		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1155,8 +1122,6 @@
 	pwm7: pwm@ff208030 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208030 0x0 0x10>;
-		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1724,7 +1689,7 @@
 
 	vopb: vop@ff460000 {
 		compatible = "rockchip,px30-vop-big";
-		reg = <0x0 0xff460000 0x0 0x260>, <0x0 0xff460a00 0x0 0x400>;
+		reg = <0x0 0xff460000 0x0 0x1fc>, <0x0 0xff460a00 0x0 0x400>;
 		rockchip,grf = <&grf>;
 		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
@@ -2048,11 +2013,11 @@
 		downdifferential = <20>;
 		system-status-freq = <
 			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       666000
+			SYS_STATUS_NORMAL       528000
 			SYS_STATUS_REBOOT       450000
 			SYS_STATUS_SUSPEND      194000
 			SYS_STATUS_VIDEO_1080P  450000
-			SYS_STATUS_BOOST        666000
+			SYS_STATUS_BOOST        528000
 			SYS_STATUS_ISP          666000
 			SYS_STATUS_PERFORMANCE  1056000
 		>;
@@ -2122,6 +2087,14 @@
 			opp-microvolt-L2 = <950000>;
 			opp-microvolt-L3 = <950000>;
 		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <975000>;
+			opp-microvolt-L0 = <975000>;
+			opp-microvolt-L1 = <975000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
+		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;
 			opp-microvolt = <1050000>;
@@ -2151,6 +2124,11 @@
 		opp-328000000 {
 			opp-hz = /bits/ 64 <328000000>;
 			opp-microvolt = <950000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <950000>;
+			status = "disabled";
 		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;
@@ -2658,27 +2636,27 @@
 		i2s0 {
 			i2s0_8ch_mclk: i2s0-8ch-mclk {
 				rockchip,pins =
-					<3 RK_PC1 2 &pcfg_pull_none_smt>;
+					<3 RK_PC1 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sclktx: i2s0-8ch-sclktx {
 				rockchip,pins =
-					<3 RK_PC3 2 &pcfg_pull_none_smt>;
+					<3 RK_PC3 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sclkrx: i2s0-8ch-sclkrx {
 				rockchip,pins =
-					<3 RK_PB4 2 &pcfg_pull_none_smt>;
+					<3 RK_PB4 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_lrcktx: i2s0-8ch-lrcktx {
 				rockchip,pins =
-					<3 RK_PC2 2 &pcfg_pull_none_smt>;
+					<3 RK_PC2 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_lrckrx: i2s0-8ch-lrckrx {
 				rockchip,pins =
-					<3 RK_PB5 2 &pcfg_pull_none_smt>;
+					<3 RK_PB5 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdo0: i2s0-8ch-sdo0 {
@@ -2725,17 +2703,17 @@
 		i2s1 {
 			i2s1_2ch_mclk: i2s1-2ch-mclk {
 				rockchip,pins =
-					<2 RK_PC3 1 &pcfg_pull_none_smt>;
+					<2 RK_PC3 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_sclk: i2s1-2ch-sclk {
 				rockchip,pins =
-					<2 RK_PC2 1 &pcfg_pull_none_smt>;
+					<2 RK_PC2 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_lrck: i2s1-2ch-lrck {
 				rockchip,pins =
-					<2 RK_PC1 1 &pcfg_pull_none_smt>;
+					<2 RK_PC1 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_sdi: i2s1-2ch-sdi {
@@ -2752,17 +2730,17 @@
 		i2s2 {
 			i2s2_2ch_mclk: i2s2-2ch-mclk {
 				rockchip,pins =
-					<3 RK_PA1 2 &pcfg_pull_none_smt>;
+					<3 RK_PA1 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_sclk: i2s2-2ch-sclk {
 				rockchip,pins =
-					<3 RK_PA2 2 &pcfg_pull_none_smt>;
+					<3 RK_PA2 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_lrck: i2s2-2ch-lrck {
 				rockchip,pins =
-					<3 RK_PA3 2 &pcfg_pull_none_smt>;
+					<3 RK_PA3 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_sdi: i2s2-2ch-sdi {

@@ -271,6 +271,8 @@
 };
 
 &sfc {
+	assigned-clocks = <&cru SCLK_SFC>;
+	assigned-clock-rates = <125000000>;
 	status = "disabled";
 
 	flash@0 {
@@ -283,5 +285,5 @@
 };
 
 &usbdrd_dwc3 {
-	dr_mode = "otg";
+	dr_mode = "peripheral";
 };

@@ -157,10 +157,6 @@ if is_enabled CONFIG_OF_EARLY_FLATTREE; then
 		# Only some architectures with OF support have this target
 		if [ -d "${srctree}/arch/$SRCARCH/boot/dts" ]; then
 			$MAKE -f $srctree/Makefile INSTALL_DTBS_PATH="$tmpdir/boot/dtb" dtbs_install
-			if [ -d "$tmpdir/boot/dtb/rockchip" ]; then
-				mv $tmpdir/boot/dtb/rockchip/* $tmpdir/boot/dtb/
-				rm -rf $tmpdir/boot/dtb/rockchip
-			fi
 		fi
 	else
 		# Only some architectures with OF support have this target
@@ -172,18 +168,10 @@ fi
 
 if is_enabled CONFIG_ARCH_ROCKCHIP; then
 	mkdir -p "$tmpdir/boot/uEnv"
-	if [ "$ARCH" = "arm64" ] ; then
-		uenv_patch="$objtree/arch/arm64/boot/dts/rockchip/uEnv"
-	else
-		uenv_patch="$objtree/arch/arm/boot/dts/uEnv"
-	fi
-	cp $uenv_patch/uEnv*.txt "$tmpdir/boot/uEnv"
-	cp $uenv_patch/${version##*-}/*.txt "$tmpdir/boot/uEnv"
-	cp $uenv_patch/boot.cmd "$tmpdir/boot/"
-	mkimage -T script -C none -d $tmpdir/boot/boot.cmd $tmpdir/boot/boot.scr
-	main_version=$(echo "${version}" | cut -d'.' -f1,2)
-	sed -i "s/^uname_r=.*/uname_r=${version}/" $tmpdir/boot/uEnv/uEnv*.txt
-	sed -i "/^uname_r=.*/a initrd=initrd-${main_version}" $tmpdir/boot/uEnv/uEnv*.txt
+ 	cp $objtree/arch/arm64/boot/dts/rockchip/uEnv/uEnv*.txt "$tmpdir/boot/uEnv"
+	# if [ -f "$tmpdir/boot/dtb/${RK_KERNEL_DTS}.dtb" ]; then
+	# 	cp "$tmpdir/boot/dtb/${RK_KERNEL_DTS}.dtb" "$tmpdir/boot/rk-kernel.dtb"
+	# fi
 fi
 
 if is_enabled CONFIG_MODULES; then

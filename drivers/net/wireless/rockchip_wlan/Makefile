@@ -3,7 +3,7 @@ obj-$(CONFIG_BCMDHD)	+= rkwifi/
 # obj-$(CONFIG_RTL8188EU)	+= rtl8188eu/
 # obj-$(CONFIG_RTL8188FU)	+= rtl8188fu/
 # obj-$(CONFIG_RTL8189ES)	+= rtl8189es/
-obj-$(CONFIG_RTL8189FS)	+= rtl8189fs/
+# obj-$(CONFIG_RTL8189FS)	+= rtl8189fs/
 # obj-$(CONFIG_RTL8723BS)	+= rtl8723bs/
 # obj-$(CONFIG_RTL8723BU)	+= rtl8723bu/
 # obj-$(CONFIG_RTL8723CS)	+= rtl8723cs/
@@ -21,6 +21,3 @@ obj-$(CONFIG_RTL8852BU)	+= rtl8852bu/
 obj-$(CONFIG_MVL88W8977)	+= mvl88w8977/
 obj-$(CONFIG_CYW_BCMDHD)	+= cywdhd/
 obj-$(CONFIG_INFINEON_DHD)	+= infineon/
-obj-$(CONFIG_AIC_WLAN_SUPPORT) += aic8800_sdio/
-obj-$(CONFIG_AIC_WLAN_USB_SUPPORT) += aic8800_usb/
-

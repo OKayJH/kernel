@@ -33,7 +33,6 @@ static void exfat_get_uniname_from_ext_entry(struct super_block *sb,
 {
 	int i;
 	struct exfat_entry_set_cache *es;
-	unsigned int uni_len = 0, len;
 
 	es = exfat_get_dentry_set(sb, p_dir, entry, ES_ALL_ENTRIES);
 	if (!es)
@@ -52,10 +51,7 @@ static void exfat_get_uniname_from_ext_entry(struct super_block *sb,
 		if (exfat_get_entry_type(ep) != TYPE_EXTEND)
 			break;
 
-		len = exfat_extract_uni_name(ep, uniname);
-		uni_len += len;
-		if (len != EXFAT_FILE_NAME_LEN || uni_len >= MAX_NAME_LENGTH)
-			break;
+		exfat_extract_uni_name(ep, uniname);
 		uniname += EXFAT_FILE_NAME_LEN;
 	}
 
@@ -106,7 +102,7 @@ static int exfat_readdir(struct inode *inode, loff_t *cpos, struct exfat_dir_ent
 			clu.dir = ei->hint_bmap.clu;
 		}
 
-		while (clu_offset > 0 && clu.dir != EXFAT_EOF_CLUSTER) {
+		while (clu_offset > 0) {
 			if (exfat_get_next_cluster(sb, &(clu.dir)))
 				return -EIO;
 
@@ -152,7 +148,7 @@ static int exfat_readdir(struct inode *inode, loff_t *cpos, struct exfat_dir_ent
 					0);
 
 			*uni_name.name = 0x0;
-			exfat_get_uniname_from_ext_entry(sb, &clu, i,
+			exfat_get_uniname_from_ext_entry(sb, &dir, dentry,
 				uni_name.name);
 			exfat_utf16_to_nls(sb, &uni_name,
 				dir_entry->namebuf.lfn,
@@ -214,10 +210,7 @@ static void exfat_free_namebuf(struct exfat_dentry_namebuf *nb)
 	exfat_init_namebuf(nb);
 }
 
-/*
- * Before calling dir_emit*(), sbi->s_lock should be released
- * because page fault can occur in dir_emit*().
- */
+/* skip iterating emit_dots when dir is empty */
 #define ITER_POS_FILLED_DOTS    (2)
 static int exfat_iterate(struct file *filp, struct dir_context *ctx)
 {
@@ -232,33 +225,35 @@ static int exfat_iterate(struct file *filp, struct dir_context *ctx)
 	int err = 0, fake_offset = 0;
 
 	exfat_init_namebuf(nb);
+	mutex_lock(&EXFAT_SB(sb)->s_lock);
 
 	cpos = ctx->pos;
 	if (!dir_emit_dots(filp, ctx))
-		goto out;
+		goto unlock;
 
 	if (ctx->pos == ITER_POS_FILLED_DOTS) {
 		cpos = 0;
 		fake_offset = 1;
 	}
 
-	cpos = round_up(cpos, DENTRY_SIZE);
+	if (cpos & (DENTRY_SIZE - 1)) {
+		err = -ENOENT;
+		goto unlock;
+	}
 
 	/* name buffer should be allocated before use */
 	err = exfat_alloc_namebuf(nb);
 	if (err)
-		goto out;
+		goto unlock;
 get_new:
-	mutex_lock(&EXFAT_SB(sb)->s_lock);
-
 	if (ei->flags == ALLOC_NO_FAT_CHAIN && cpos >= i_size_read(inode))
 		goto end_of_dir;
 
 	err = exfat_readdir(inode, &cpos, &de);
 	if (err) {
 		/*
-		 * At least we tried to read a sector.
-		 * Move cpos to next sector position (should be aligned).
+		 * At least we tried to read a sector.  Move cpos to next sector
+		 * position (should be aligned).
 		 */
 		if (err == -EIO) {
 			cpos += 1 << (sb->s_blocksize_bits);
@@ -281,10 +276,16 @@ get_new:
 		inum = iunique(sb, EXFAT_ROOT_INO);
 	}
 
+	/*
+	 * Before calling dir_emit(), sb_lock should be released.
+	 * Because page fault can occur in dir_emit() when the size
+	 * of buffer given from user is larger than one page size.
+	 */
 	mutex_unlock(&EXFAT_SB(sb)->s_lock);
 	if (!dir_emit(ctx, nb->lfn, strlen(nb->lfn), inum,
 			(de.attr & ATTR_SUBDIR) ? DT_DIR : DT_REG))
-		goto out;
+		goto out_unlocked;
+	mutex_lock(&EXFAT_SB(sb)->s_lock);
 	ctx->pos = cpos;
 	goto get_new;
 
@@ -292,8 +293,9 @@ end_of_dir:
 	if (!cpos && fake_offset)
 		cpos = ITER_POS_FILLED_DOTS;
 	ctx->pos = cpos;
+unlock:
 	mutex_unlock(&EXFAT_SB(sb)->s_lock);
-out:
+out_unlocked:
 	/*
 	 * To improve performance, free namebuf after unlock sb_lock.
 	 * If namebuf is not allocated, this function do nothing
@@ -613,10 +615,6 @@ int exfat_free_dentry_set(struct exfat_entry_set_cache *es, int sync)
 			bforget(es->bh[i]);
 		else
 			brelse(es->bh[i]);
-
-	if (IS_DYNAMIC_ES(es))
-		kfree(es->bh);
-
 	kfree(es);
 	return err;
 }
@@ -852,7 +850,6 @@ struct exfat_entry_set_cache *exfat_get_dentry_set(struct super_block *sb,
 	/* byte offset in sector */
 	off = EXFAT_BLK_OFFSET(byte_offset, sb);
 	es->start_off = off;
-	es->bh = es->__bh;
 
 	/* sector offset in cluster */
 	sec = EXFAT_B_TO_BLK(byte_offset, sb);
@@ -872,16 +869,6 @@ struct exfat_entry_set_cache *exfat_get_dentry_set(struct super_block *sb,
 	es->num_entries = num_entries;
 
 	num_bh = EXFAT_B_TO_BLK_ROUND_UP(off + num_entries * DENTRY_SIZE, sb);
-	if (num_bh > ARRAY_SIZE(es->__bh)) {
-		es->bh = kmalloc_array(num_bh, sizeof(*es->bh), GFP_KERNEL);
-		if (!es->bh) {
-			brelse(bh);
-			kfree(es);
-			return NULL;
-		}
-		es->bh[0] = bh;
-	}
-
 	for (i = 1; i < num_bh; i++) {
 		/* get the next sector */
 		if (exfat_is_last_sector_in_cluster(sbi, sec)) {
@@ -921,19 +908,14 @@ enum {
 };
 
 /*
- * @ei:         inode info of parent directory
- * @p_dir:      directory structure of parent directory
- * @num_entries:entry size of p_uniname
- * @hint_opt:   If p_uniname is found, filled with optimized dir/entry
- *              for traversing cluster chain.
- * @return:
- *   >= 0:      file directory entry position where the name exists
- *   -ENOENT:   entry with the name does not exist
- *   -EIO:      I/O error
+ * return values:
+ *   >= 0	: return dir entiry position with the name in dir
+ *   -ENOENT	: entry with the name does not exist
+ *   -EIO	: I/O error
  */
 int exfat_find_dir_entry(struct super_block *sb, struct exfat_inode_info *ei,
 		struct exfat_chain *p_dir, struct exfat_uni_name *p_uniname,
-		int num_entries, unsigned int type, struct exfat_hint *hint_opt)
+		int num_entries, unsigned int type)
 {
 	int i, rewind = 0, dentry = 0, end_eidx = 0, num_ext = 0, len;
 	int order, step, name_len = 0;
@@ -1010,8 +992,6 @@ rewind:
 
 			if (entry_type == TYPE_FILE || entry_type == TYPE_DIR) {
 				step = DIRENT_STEP_FILE;
-				hint_opt->clu = clu.dir;
-				hint_opt->eidx = i;
 				if (type == TYPE_ALL || type == entry_type) {
 					num_ext = ep->dentry.file.num_ext;
 					step = DIRENT_STEP_STRM;
@@ -1046,8 +1026,7 @@ rewind:
 			if (entry_type == TYPE_EXTEND) {
 				unsigned short entry_uniname[16], unichar;
 
-				if (step != DIRENT_STEP_NAME ||
-				    name_len >= MAX_NAME_LENGTH) {
+				if (step != DIRENT_STEP_NAME) {
 					step = DIRENT_STEP_FILE;
 					continue;
 				}

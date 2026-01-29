@@ -53,7 +53,7 @@
 
 / {
 	model = "Embedfire LubanCat-4IO";
-	compatible = "embedfire,rk3588s-lubancat-4io", "rockchip,rk3588";
+	compatible = "rockchip,rk3588s-lubancat-4io", "rockchip,rk3588";
 
 	leds: leds {
 		status = "okay";
@@ -1395,10 +1395,6 @@
 };
 
 &rkvenc1_mmu {
-	status = "okay";
-};
-
-&rkvtunnel {
 	status = "okay";
 };
 

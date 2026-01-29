@@ -111,7 +111,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-u2-broken-suspend");
 
 	if (prop_idx) {
-		ret = device_create_managed_software_node(&xhci->dev, props, NULL);
+		ret = platform_device_add_properties(xhci, props);
 		if (ret) {
 			dev_err(dwc->dev, "failed to add properties to xHCI\n");
 			goto err;

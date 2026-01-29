@@ -45,7 +45,7 @@
 #include <crypto/sha.h>
 #include "kexec_internal.h"
 
-atomic_t __kexec_lock = ATOMIC_INIT(0);
+DEFINE_MUTEX(kexec_mutex);
 
 /* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t __percpu *crash_notes;
@@ -943,7 +943,7 @@ int kexec_load_disabled;
  */
 void __noclone __crash_kexec(struct pt_regs *regs)
 {
-	/* Take the kexec_lock here to prevent sys_kexec_load
+	/* Take the kexec_mutex here to prevent sys_kexec_load
 	 * running on one cpu from replacing the crash kernel
 	 * we are using after a panic on a different cpu.
 	 *
@@ -951,7 +951,7 @@ void __noclone __crash_kexec(struct pt_regs *regs)
 	 * of memory the xchg(&kexec_crash_image) would be
 	 * sufficient.  But since I reuse the memory...
 	 */
-	if (kexec_trylock()) {
+	if (mutex_trylock(&kexec_mutex)) {
 		if (kexec_crash_image) {
 			struct pt_regs fixed_regs;
 
@@ -960,7 +960,7 @@ void __noclone __crash_kexec(struct pt_regs *regs)
 			machine_crash_shutdown(&fixed_regs);
 			machine_kexec(kexec_crash_image);
 		}
-		kexec_unlock();
+		mutex_unlock(&kexec_mutex);
 	}
 }
 STACK_FRAME_NON_STANDARD(__crash_kexec);
@@ -989,17 +989,14 @@ void crash_kexec(struct pt_regs *regs)
 	}
 }
 
-ssize_t crash_get_memory_size(void)
+size_t crash_get_memory_size(void)
 {
-	ssize_t size = 0;
+	size_t size = 0;
 
-	if (!kexec_trylock())
-		return -EBUSY;
-
+	mutex_lock(&kexec_mutex);
 	if (crashk_res.end != crashk_res.start)
 		size = resource_size(&crashk_res);
-
-	kexec_unlock();
+	mutex_unlock(&kexec_mutex);
 	return size;
 }
 
@@ -1019,8 +1016,7 @@ int crash_shrink_memory(unsigned long new_size)
 	unsigned long old_size;
 	struct resource *ram_res;
 
-	if (!kexec_trylock())
-		return -EBUSY;
+	mutex_lock(&kexec_mutex);
 
 	if (kexec_crash_image) {
 		ret = -ENOENT;
@@ -1029,7 +1025,6 @@ int crash_shrink_memory(unsigned long new_size)
 	start = crashk_res.start;
 	end = crashk_res.end;
 	old_size = (end == 0) ? 0 : end - start + 1;
-	new_size = roundup(new_size, KEXEC_CRASH_MEM_ALIGN);
 	if (new_size >= old_size) {
 		ret = (new_size == old_size) ? 0 : -EINVAL;
 		goto unlock;
@@ -1041,7 +1036,9 @@ int crash_shrink_memory(unsigned long new_size)
 		goto unlock;
 	}
 
-	end = start + new_size;
+	start = roundup(start, KEXEC_CRASH_MEM_ALIGN);
+	end = roundup(start + new_size, KEXEC_CRASH_MEM_ALIGN);
+
 	crash_free_reserved_phys_range(end, crashk_res.end);
 
 	if ((start == end) && (crashk_res.parent != NULL))
@@ -1057,7 +1054,7 @@ int crash_shrink_memory(unsigned long new_size)
 	insert_resource(&iomem_resource, ram_res);
 
 unlock:
-	kexec_unlock();
+	mutex_unlock(&kexec_mutex);
 	return ret;
 }
 
@@ -1129,7 +1126,7 @@ int kernel_kexec(void)
 {
 	int error = 0;
 
-	if (!kexec_trylock())
+	if (!mutex_trylock(&kexec_mutex))
 		return -EBUSY;
 	if (!kexec_image) {
 		error = -EINVAL;
@@ -1204,7 +1201,7 @@ int kernel_kexec(void)
 #endif
 
  Unlock:
-	kexec_unlock();
+	mutex_unlock(&kexec_mutex);
 	return error;
 }
 

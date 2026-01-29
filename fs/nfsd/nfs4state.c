@@ -507,26 +507,15 @@ find_any_file(struct nfs4_file *f)
 	return ret;
 }
 
-static struct nfsd_file *find_any_file_locked(struct nfs4_file *f)
+static struct nfsd_file *find_deleg_file(struct nfs4_file *f)
 {
-	lockdep_assert_held(&f->fi_lock);
+	struct nfsd_file *ret = NULL;
 
-	if (f->fi_fds[O_RDWR])
-		return f->fi_fds[O_RDWR];
-	if (f->fi_fds[O_WRONLY])
-		return f->fi_fds[O_WRONLY];
-	if (f->fi_fds[O_RDONLY])
-		return f->fi_fds[O_RDONLY];
-	return NULL;
-}
-
-static struct nfsd_file *find_deleg_file_locked(struct nfs4_file *f)
-{
-	lockdep_assert_held(&f->fi_lock);
-
+	spin_lock(&f->fi_lock);
 	if (f->fi_deleg_file)
-		return f->fi_deleg_file;
-	return NULL;
+		ret = nfsd_file_get(f->fi_deleg_file);
+	spin_unlock(&f->fi_lock);
+	return ret;
 }
 
 static atomic_long_t num_delegations;
@@ -1145,9 +1134,9 @@ static void revoke_delegation(struct nfs4_delegation *dp)
 	WARN_ON(!list_empty(&dp->dl_recall_lru));
 
 	if (clp->cl_minorversion) {
-		spin_lock(&clp->cl_lock);
 		dp->dl_stid.sc_type = NFS4_REVOKED_DELEG_STID;
 		refcount_inc(&dp->dl_stid.sc_count);
+		spin_lock(&clp->cl_lock);
 		list_add(&dp->dl_recall_lru, &clp->cl_revoked);
 		spin_unlock(&clp->cl_lock);
 	}
@@ -2473,11 +2462,9 @@ static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 	ols = openlockstateid(st);
 	oo = ols->st_stateowner;
 	nf = st->sc_file;
-
-	spin_lock(&nf->fi_lock);
-	file = find_any_file_locked(nf);
+	file = find_any_file(nf);
 	if (!file)
-		goto out;
+		return 0;
 
 	seq_printf(s, "- ");
 	nfs4_show_stateid(s, &st->sc_stateid);
@@ -2499,8 +2486,8 @@ static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 	seq_printf(s, ", ");
 	nfs4_show_owner(s, oo);
 	seq_printf(s, " }\n");
-out:
-	spin_unlock(&nf->fi_lock);
+	nfsd_file_put(file);
+
 	return 0;
 }
 
@@ -2514,10 +2501,9 @@ static int nfs4_show_lock(struct seq_file *s, struct nfs4_stid *st)
 	ols = openlockstateid(st);
 	oo = ols->st_stateowner;
 	nf = st->sc_file;
-	spin_lock(&nf->fi_lock);
-	file = find_any_file_locked(nf);
+	file = find_any_file(nf);
 	if (!file)
-		goto out;
+		return 0;
 
 	seq_printf(s, "- ");
 	nfs4_show_stateid(s, &st->sc_stateid);
@@ -2537,8 +2523,8 @@ static int nfs4_show_lock(struct seq_file *s, struct nfs4_stid *st)
 	seq_printf(s, ", ");
 	nfs4_show_owner(s, oo);
 	seq_printf(s, " }\n");
-out:
-	spin_unlock(&nf->fi_lock);
+	nfsd_file_put(file);
+
 	return 0;
 }
 
@@ -2550,10 +2536,9 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 
 	ds = delegstateid(st);
 	nf = st->sc_file;
-	spin_lock(&nf->fi_lock);
-	file = find_deleg_file_locked(nf);
+	file = find_deleg_file(nf);
 	if (!file)
-		goto out;
+		return 0;
 
 	seq_printf(s, "- ");
 	nfs4_show_stateid(s, &st->sc_stateid);
@@ -2569,8 +2554,8 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 	seq_printf(s, ", ");
 	nfs4_show_fname(s, file);
 	seq_printf(s, " }\n");
-out:
-	spin_unlock(&nf->fi_lock);
+	nfsd_file_put(file);
+
 	return 0;
 }
 
@@ -2647,7 +2632,7 @@ static int client_opens_release(struct inode *inode, struct file *file)
 
 	/* XXX: alternatively, we could get/drop in seq start/stop */
 	drop_client(clp);
-	return seq_release(inode, file);
+	return 0;
 }
 
 static const struct file_operations client_states_fops = {
@@ -5656,6 +5641,8 @@ static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid) ||
 		CLOSE_STATEID(stateid))
 		return status;
+	if (!same_clid(&stateid->si_opaque.so_clid, &cl->cl_clientid))
+		return status;
 	spin_lock(&cl->cl_lock);
 	s = find_stateid_locked(cl, stateid);
 	if (!s)
@@ -7392,9 +7379,14 @@ nfs4_state_start_net(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
 
-	ret = nfs4_state_create_net(net);
+	ret = get_nfsdfs(net);
 	if (ret)
 		return ret;
+	ret = nfs4_state_create_net(net);
+	if (ret) {
+		mntput(nn->nfsd_mnt);
+		return ret;
+	}
 	locks_start_grace(net, &nn->nfsd4_manager);
 	nfsd4_client_tracking_init(net);
 	if (nn->track_reclaim_completes && nn->reclaim_str_hashtbl_size == 0)
@@ -7464,6 +7456,7 @@ nfs4_state_shutdown_net(struct net *net)
 
 	nfsd4_client_tracking_exit(net);
 	nfs4_state_destroy_net(net);
+	mntput(nn->nfsd_mnt);
 }
 
 void

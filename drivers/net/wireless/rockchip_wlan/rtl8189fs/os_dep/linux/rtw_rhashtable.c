@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -13,9 +14,9 @@
  *
  *****************************************************************************/
 
-#include <drv_types.h>
+#ifdef CONFIG_RTW_MESH /* for now, only promised for kernel versions we support mesh */
 
-#if defined(CONFIG_RTW_WDS) || defined(CONFIG_RTW_MESH) /* for now, only promised for kernel versions we support mesh */
+#include <drv_types.h>
 
 int rtw_rhashtable_walk_enter(rtw_rhashtable *ht, rtw_rhashtable_iter *iter)
 {
@@ -73,5 +74,5 @@ void kvfree(const void *addr)
 
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)) */
 
-#endif /* defined(CONFIG_RTW_WDS) || defined(CONFIG_RTW_MESH) */
+#endif /* CONFIG_RTW_MESH */
 

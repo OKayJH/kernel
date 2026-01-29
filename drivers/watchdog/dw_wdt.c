@@ -156,10 +156,6 @@ static unsigned int dw_wdt_get_min_timeout(struct dw_wdt *dw_wdt)
 			break;
 	}
 
-	/* For Coverity check */
-	if (idx == DW_WDT_NUM_TOPS)
-		idx = 0;
-
 	return dw_wdt->timeouts[idx].sec;
 }
 
@@ -182,9 +178,6 @@ static unsigned int dw_wdt_get_timeout(struct dw_wdt *dw_wdt)
 		if (dw_wdt->timeouts[idx].top_val == top_val)
 			break;
 	}
-
-	if (idx == DW_WDT_NUM_TOPS)
-		idx = 0;
 
 	/*
 	 * In IRQ mode due to the two stages counter, the actual timeout is
@@ -645,7 +638,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 
 	ret = dw_wdt_init_timeouts(dw_wdt, dev);
 	if (ret)
-		goto out_assert_rst;
+		goto out_disable_clk;
 
 	wdd = &dw_wdt->wdd;
 	wdd->ops = &dw_wdt_ops;
@@ -676,14 +669,11 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 
 	ret = watchdog_register_device(wdd);
 	if (ret)
-		goto out_assert_rst;
+		goto out_disable_pclk;
 
 	dw_wdt_dbgfs_init(dw_wdt);
 
 	return 0;
-
-out_assert_rst:
-	reset_control_assert(dw_wdt->rst);
 
 out_disable_pclk:
 	clk_disable_unprepare(dw_wdt->pclk);

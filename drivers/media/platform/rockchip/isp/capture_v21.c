@@ -827,8 +827,7 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 	mi_frame_end_int_enable(stream);
 	mi_wr_ctrl2(base, SW_RAW3_WR_AUTOUPD);
 	mi_raw_length(stream);
-	/* sensor PAD2 index */
-	vc = csi->sink[CSI_SRC_CH2 - 1].index;
+	vc = csi->sink[CSI_SRC_CH4 - 1].index;
 	raw_wr_ctrl(stream,
 		SW_CSI_RAW_WR_CH_EN(vc) |
 		stream->memory |
@@ -1096,7 +1095,7 @@ static struct streams_ops rkisp2_dmatx0_streams_ops = {
 	.config_mi = dmatx0_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx0_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1105,7 +1104,7 @@ static struct streams_ops rkisp2_dmatx2_streams_ops = {
 	.config_mi = dmatx2_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx2_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1114,7 +1113,7 @@ static struct streams_ops rkisp2_dmatx3_streams_ops = {
 	.config_mi = dmatx3_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx3_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1151,8 +1150,7 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			if (!ret) {
 				denominator = sensor->fi.interval.denominator;
 				numerator = sensor->fi.interval.numerator;
-				if (denominator)
-					time = numerator * 1000 / denominator * 1000 * 1000;
+				time = numerator * 1000 / denominator * 1000 * 1000;
 				if (numerator)
 					fps = denominator / numerator;
 			}
@@ -1208,9 +1206,6 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	unsigned long lock_flags = 0;
 	int i = 0;
 
-	if (stream->id == RKISP_STREAM_VIR)
-		return 0;
-
 	if (!stream->next_buf && stream->streaming &&
 	    dev->dmarx_dev.trigger == T_MANUAL &&
 	    is_rdbk_stream(stream))
@@ -1223,18 +1218,8 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	    (!interlaced ||
 	     (stream->u.sp.field_rec == RKISP_FIELD_ODD &&
 	      stream->u.sp.field == RKISP_FIELD_EVEN))) {
-		struct rkisp_stream *vir = &dev->cap_dev.stream[RKISP_STREAM_VIR];
 		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
 		u64 ns = 0;
-
-		if (stream->skip_frame) {
-			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-			list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
-			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
-			if (stream->skip_frame)
-				stream->skip_frame--;
-			goto end;
-		}
 
 		/* Dequeue a filled buffer */
 		for (i = 0; i < isp_fmt->mplanes; i++) {
@@ -1252,10 +1237,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 				atomic_read(&stream->sequence) - 1;
 		}
 		if (!ns)
-			ns = rkisp_time_get_ns(dev);
+			ns = ktime_get_ns();
 		vb2_buf->timestamp = ns;
 
-		ns = rkisp_time_get_ns(dev);
+		ns = ktime_get_ns();
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = stream->curr_buf->vb.sequence;
@@ -1283,22 +1268,12 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 				rdbk_frame_end(stream);
 			}
 		} else {
-			if (vir->streaming && vir->conn_id == stream->id) {
-				spin_lock_irqsave(&vir->vbq_lock, lock_flags);
-				list_add_tail(&stream->curr_buf->queue,
-					      &dev->cap_dev.vir_cpy.queue);
-				spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
-				if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
-					complete(&dev->cap_dev.vir_cpy.cmpl);
-			} else {
-				rkisp_stream_buf_done(stream, stream->curr_buf);
-			}
+			rkisp_stream_buf_done(stream, stream->curr_buf);
 		}
 
 		stream->curr_buf = NULL;
 	}
 
-end:
 	if (!interlaced ||
 		(stream->curr_buf == stream->next_buf &&
 		stream->u.sp.field == RKISP_FIELD_ODD)) {
@@ -1425,7 +1400,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
 		hdr_config_dmatx(dev);
 	stream->streaming = true;
-	stream->skip_frame = 0;
+
 	return 0;
 }
 
@@ -1483,12 +1458,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
-		ispbuf->vaddr[i] = vb2_plane_vaddr(vb, i);
-		if (rkisp_buf_dbg && ispbuf->vaddr[i]) {
-			u64 *data = ispbuf->vaddr[i];
-
-			*data = RKISP_DATA_CHECK;
-		}
+		vb2_plane_vaddr(vb, i);
 		if (stream->ispdev->hw_dev->is_dma_sg_ops) {
 			sgt = vb2_dma_sg_plane_desc(vb, i);
 			ispbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
@@ -1601,21 +1571,6 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	if (!stream->streaming)
 		goto end;
 
-	if (stream->id == RKISP_STREAM_VIR) {
-		stream->stopping = true;
-		wait_event_timeout(stream->done,
-				   stream->frame_end,
-				   msecs_to_jiffies(500));
-		stream->streaming = false;
-		stream->stopping = false;
-		destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
-
-		if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
-			complete(&dev->cap_dev.vir_cpy.cmpl);
-		stream->conn_id = -1;
-		goto end;
-	}
-
 	rkisp_stream_stop(stream);
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP) {
@@ -1695,28 +1650,6 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (WARN_ON(stream->streaming)) {
 		mutex_unlock(&dev->hw_dev->dev_lock);
 		return -EBUSY;
-	}
-
-	if (stream->id == RKISP_STREAM_VIR) {
-		struct rkisp_stream *t = &dev->cap_dev.stream[stream->conn_id];
-
-		if (t->streaming) {
-			INIT_WORK(&dev->cap_dev.vir_cpy.work, rkisp_stream_vir_cpy_image);
-			init_completion(&dev->cap_dev.vir_cpy.cmpl);
-			INIT_LIST_HEAD(&dev->cap_dev.vir_cpy.queue);
-			dev->cap_dev.vir_cpy.stream = stream;
-			schedule_work(&dev->cap_dev.vir_cpy.work);
-			ret = 0;
-		} else {
-			v4l2_err(&dev->v4l2_dev,
-				 "no stream enable for iqtool\n");
-			destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
-			ret = -EINVAL;
-		}
-
-		mutex_unlock(&dev->hw_dev->dev_lock);
-
-		return ret;
 	}
 
 	memset(&stream->dbg, 0, sizeof(stream->dbg));
@@ -1854,7 +1787,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 
 	switch (id) {
 	case RKISP_STREAM_SP:
-		strscpy(vdev->name, SP_VDEV_NAME,
+		strlcpy(vdev->name, SP_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp_sp_streams_ops;
 		stream->config = &rkisp_sp_stream_config;
@@ -1862,32 +1795,25 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		stream->config->fmt_size = ARRAY_SIZE(sp_fmts);
 		break;
 	case RKISP_STREAM_DMATX0:
-		strscpy(vdev->name, DMATX0_VDEV_NAME,
+		strlcpy(vdev->name, DMATX0_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp2_dmatx0_streams_ops;
 		stream->config = &rkisp2_dmatx0_stream_config;
 		break;
 	case RKISP_STREAM_DMATX2:
-		strscpy(vdev->name, DMATX2_VDEV_NAME,
+		strlcpy(vdev->name, DMATX2_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp2_dmatx2_streams_ops;
 		stream->config = &rkisp2_dmatx1_stream_config;
 		break;
 	case RKISP_STREAM_DMATX3:
-		strscpy(vdev->name, DMATX3_VDEV_NAME,
+		strlcpy(vdev->name, DMATX3_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp2_dmatx3_streams_ops;
 		stream->config = &rkisp2_dmatx3_stream_config;
 		break;
-	case RKISP_STREAM_VIR:
-		strscpy(vdev->name, VIR_VDEV_NAME,
-			sizeof(vdev->name));
-		stream->ops = NULL;
-		stream->config = &rkisp_mp_stream_config;
-		stream->conn_id = -1;
-		break;
 	default:
-		strscpy(vdev->name, MP_VDEV_NAME,
+		strlcpy(vdev->name, MP_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp_mp_streams_ops;
 		stream->config = &rkisp_mp_stream_config;
@@ -1931,13 +1857,8 @@ int rkisp_register_stream_v21(struct rkisp_device *dev)
 	ret = rkisp_stream_init(dev, RKISP_STREAM_DMATX3);
 	if (ret < 0)
 		goto err_free_tx2;
-	ret = rkisp_stream_init(dev, RKISP_STREAM_VIR);
-	if (ret < 0)
-		goto err_free_tx3;
 
 	return 0;
-err_free_tx3:
-	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_DMATX3]);
 err_free_tx2:
 	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_DMATX2]);
 err_free_tx0:
@@ -1965,8 +1886,6 @@ void rkisp_unregister_stream_v21(struct rkisp_device *dev)
 	rkisp_unregister_stream_vdev(stream);
 	stream = &cap_dev->stream[RKISP_STREAM_DMATX3];
 	rkisp_unregister_stream_vdev(stream);
-	stream = &cap_dev->stream[RKISP_STREAM_VIR];
-	rkisp_unregister_stream_vdev(stream);
 }
 
 /****************  Interrupter Handler ****************/
@@ -1986,7 +1905,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 	for (i = 0; i < RKISP_MAX_STREAM; ++i) {
 		stream = &dev->cap_dev.stream[i];
 
-		if (!(mis_val & CIF_MI_FRAME(stream)) || stream->id == RKISP_STREAM_VIR)
+		if (!(mis_val & CIF_MI_FRAME(stream)))
 			continue;
 
 		if (i == RKISP_STREAM_DMATX0)

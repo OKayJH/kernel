@@ -29,43 +29,14 @@
 
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 
-#include "mali_kbase.h"
-
 #include <linux/list.h>
-#include <linux/version_compat_defs.h>
+#include "mali_kbase_fence_defs.h"
+#include "mali_kbase.h"
+#include "mali_kbase_refcount_defs.h"
 
 #if MALI_USE_CSF
-/* Number of digits needed to express the max value of given unsigned type.
- *
- * Details: The number of digits needed to express the max value of given type is log10(t_max) + 1
- * sizeof(t) == log2(t_max)/8
- * log10(t_max) == log2(t_max) / log2(10)
- * log2(t_max) == sizeof(type) * 8
- * 1/log2(10) is approx (1233 >> 12)
- * Hence, number of digits for given type == log10(t_max) + 1 == sizeof(type) * 8 * (1233 >> 12) + 1
- */
-#define MAX_DIGITS_FOR_UNSIGNED_TYPE(t) ((((sizeof(t) * BITS_PER_BYTE) * 1233) >> 12) + 1)
-
-/* Number of digits needed to express the max value of given signed type,
- * including the sign character,
- */
-#define MAX_DIGITS_FOR_SIGNED_TYPE(t) (MAX_DIGITS_FOR_UNSIGNED_TYPE(t) + 1)
-
-/* Max number of characters for id member of kbase_device struct. */
-#define MAX_KBDEV_ID_LEN MAX_DIGITS_FOR_UNSIGNED_TYPE(u32)
-/* Max number of characters for tgid member of kbase_context struct. */
-#define MAX_KCTX_TGID_LEN MAX_DIGITS_FOR_SIGNED_TYPE(pid_t)
-/* Max number of characters for id member of kbase_context struct. */
-#define MAX_KCTX_ID_LEN MAX_DIGITS_FOR_UNSIGNED_TYPE(u32)
-/* Max number of characters for fence_context member of kbase_kcpu_command_queue struct. */
-#define MAX_KCTX_QUEUE_FENCE_CTX_LEN MAX_DIGITS_FOR_UNSIGNED_TYPE(u64)
-/* Max number of characters for timeline name fixed format, including null character. */
-#define FIXED_FORMAT_LEN (9)
-
 /* Maximum number of characters in DMA fence timeline name. */
-#define MAX_TIMELINE_NAME                                                                        \
-	(MAX_KBDEV_ID_LEN + MAX_KCTX_TGID_LEN + MAX_KCTX_ID_LEN + MAX_KCTX_QUEUE_FENCE_CTX_LEN + \
-	 FIXED_FORMAT_LEN)
+#define MAX_TIMELINE_NAME (32)
 
 /**
  * struct kbase_kcpu_dma_fence_meta - Metadata structure for dma fence objects containing
@@ -81,7 +52,7 @@
 struct kbase_kcpu_dma_fence_meta {
 	kbase_refcount_t refcount;
 	struct kbase_device *kbdev;
-	u32 kctx_id;
+	int kctx_id;
 	char timeline_name[MAX_TIMELINE_NAME];
 };
 
@@ -93,12 +64,20 @@ struct kbase_kcpu_dma_fence_meta {
  * @metadata:  Pointer to metadata structure.
  */
 struct kbase_kcpu_dma_fence {
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+	struct fence base;
+#else
 	struct dma_fence base;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) */
 	struct kbase_kcpu_dma_fence_meta *metadata;
 };
 #endif
 
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+extern const struct fence_ops kbase_fence_ops;
+#else
 extern const struct dma_fence_ops kbase_fence_ops;
+#endif
 
 /**
  * kbase_fence_out_new() - Creates a new output fence and puts it on the atom
@@ -106,7 +85,11 @@ extern const struct dma_fence_ops kbase_fence_ops;
  *
  * Return: A new fence object on success, NULL on failure.
  */
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+struct fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
+#else
 struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
+#endif
 
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 /**
@@ -116,12 +99,13 @@ struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
  *
  * This function will take ownership of one fence reference!
  */
-#define kbase_fence_fence_in_set(katom, fence)        \
-	do {                                          \
+#define kbase_fence_fence_in_set(katom, fence) \
+	do { \
 		WARN_ON((katom)->dma_fence.fence_in); \
-		(katom)->dma_fence.fence_in = fence;  \
+		(katom)->dma_fence.fence_in = fence; \
 	} while (0)
 #endif
+
 
 #if !MALI_USE_CSF
 /**
@@ -162,7 +146,8 @@ static inline void kbase_fence_in_remove(struct kbase_jd_atom *katom)
  */
 static inline bool kbase_fence_out_is_ours(struct kbase_jd_atom *katom)
 {
-	return katom->dma_fence.fence && katom->dma_fence.fence->ops == &kbase_fence_ops;
+	return katom->dma_fence.fence &&
+				katom->dma_fence.fence->ops == &kbase_fence_ops;
 }
 
 /**
@@ -172,10 +157,19 @@ static inline bool kbase_fence_out_is_ours(struct kbase_jd_atom *katom)
  *
  * Return: 0 on success, < 0 on error
  */
-static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom, int status)
+static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom,
+					 int status)
 {
-	if (status)
-		dma_fence_set_error_helper(katom->dma_fence.fence, status);
+	if (status) {
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
+	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE)
+		fence_set_error(katom->dma_fence.fence, status);
+#elif (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE)
+		dma_fence_set_error(katom->dma_fence.fence, status);
+#else
+		katom->dma_fence.fence->status = status;
+#endif
+	}
 	return dma_fence_signal(katom->dma_fence.fence);
 }
 
@@ -214,7 +208,11 @@ static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom, int status
 #define kbase_fence_get(fence_info) dma_fence_get((fence_info)->fence)
 
 #if MALI_USE_CSF
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+static inline struct kbase_kcpu_dma_fence *kbase_kcpu_dma_fence_get(struct fence *fence)
+#else
 static inline struct kbase_kcpu_dma_fence *kbase_kcpu_dma_fence_get(struct dma_fence *fence)
+#endif
 {
 	if (fence->ops == &kbase_fence_ops)
 		return (struct kbase_kcpu_dma_fence *)fence;
@@ -230,7 +228,11 @@ static inline void kbase_kcpu_dma_fence_meta_put(struct kbase_kcpu_dma_fence_met
 	}
 }
 
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+static inline void kbase_kcpu_dma_fence_put(struct fence *fence)
+#else
 static inline void kbase_kcpu_dma_fence_put(struct dma_fence *fence)
+#endif
 {
 	struct kbase_kcpu_dma_fence *kcpu_fence = kbase_kcpu_dma_fence_get(fence);
 
@@ -243,7 +245,11 @@ static inline void kbase_kcpu_dma_fence_put(struct dma_fence *fence)
  * kbase_fence_put() - Releases a reference to a fence
  * @fence: Fence to release reference for.
  */
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+static inline void kbase_fence_put(struct fence *fence)
+#else
 static inline void kbase_fence_put(struct dma_fence *fence)
+#endif
 {
 	dma_fence_put(fence);
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -67,7 +68,7 @@
 #ifdef CONFIG_ADAPTIVE_SOML
 
 struct adaptive_soml {
-	u32			rvrt_val; /*all rvrt_val for pause API must set to u32*/
+	u8			rvrt_val;
 	boolean			is_soml_method_enable;
 	boolean			get_stats;
 	u8			soml_on_off;

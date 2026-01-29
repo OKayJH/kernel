@@ -149,10 +149,13 @@ static ssize_t nsim_dev_trap_fa_cookie_write(struct file *file,
 	cookie_len = (count - 1) / 2;
 	if ((count - 1) % 2)
 		return -EINVAL;
+	buf = kmalloc(count, GFP_KERNEL | __GFP_NOWARN);
+	if (!buf)
+		return -ENOMEM;
 
-	buf = memdup_user(data, count);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	ret = simple_write_to_buffer(buf, count, ppos, data, count);
+	if (ret < 0)
+		goto free_buf;
 
 	fa_cookie = kmalloc(sizeof(*fa_cookie) + cookie_len,
 			    GFP_KERNEL | __GFP_NOWARN);

@@ -669,7 +669,7 @@ void vhost_dev_stop(struct vhost_dev *dev)
 }
 EXPORT_SYMBOL_GPL(vhost_dev_stop);
 
-void vhost_clear_msg(struct vhost_dev *dev)
+static void vhost_clear_msg(struct vhost_dev *dev)
 {
 	struct vhost_msg_node *node, *n;
 
@@ -687,7 +687,6 @@ void vhost_clear_msg(struct vhost_dev *dev)
 
 	spin_unlock(&dev->iotlb_lock);
 }
-EXPORT_SYMBOL_GPL(vhost_clear_msg);
 
 void vhost_dev_cleanup(struct vhost_dev *dev)
 {
@@ -1621,25 +1620,17 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 			r = -EFAULT;
 			break;
 		}
-		if (vhost_has_feature(vq, VIRTIO_F_RING_PACKED)) {
-			vq->last_avail_idx = s.num & 0xffff;
-			vq->last_used_idx = (s.num >> 16) & 0xffff;
-		} else {
-			if (s.num > 0xffff) {
-				r = -EINVAL;
-				break;
-			}
-			vq->last_avail_idx = s.num;
+		if (s.num > 0xffff) {
+			r = -EINVAL;
+			break;
 		}
+		vq->last_avail_idx = s.num;
 		/* Forget the cached index value. */
 		vq->avail_idx = vq->last_avail_idx;
 		break;
 	case VHOST_GET_VRING_BASE:
 		s.index = idx;
-		if (vhost_has_feature(vq, VIRTIO_F_RING_PACKED))
-			s.num = (u32)vq->last_avail_idx | ((u32)vq->last_used_idx << 16);
-		else
-			s.num = vq->last_avail_idx;
+		s.num = vq->last_avail_idx;
 		if (copy_to_user(argp, &s, sizeof s))
 			r = -EFAULT;
 		break;
@@ -2050,7 +2041,7 @@ static int translate_desc(struct vhost_virtqueue *vq, u64 addr, u32 len,
 	struct vhost_dev *dev = vq->dev;
 	struct vhost_iotlb *umem = dev->iotlb ? dev->iotlb : dev->umem;
 	struct iovec *_iov;
-	u64 s = 0, last = addr + len - 1;
+	u64 s = 0;
 	int ret = 0;
 
 	while ((u64)len > s) {
@@ -2060,7 +2051,7 @@ static int translate_desc(struct vhost_virtqueue *vq, u64 addr, u32 len,
 			break;
 		}
 
-		map = vhost_iotlb_itree_first(umem, addr, last);
+		map = vhost_iotlb_itree_first(umem, addr, addr + len - 1);
 		if (map == NULL || map->start > addr) {
 			if (umem != dev->iotlb) {
 				ret = -EFAULT;

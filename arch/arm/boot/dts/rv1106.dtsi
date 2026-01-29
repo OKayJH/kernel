@@ -9,7 +9,6 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
-#include <dt-bindings/suspend/rockchip-rv1106.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -314,71 +313,19 @@
 	rkisp_vir1: rkisp-vir1 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
-		dvbm = <&rkdvbm>;
 		status = "disabled";
 	};
 
 	rkisp_vir2: rkisp-vir2 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
-		dvbm = <&rkdvbm>;
 		status = "disabled";
 	};
 
 	rkisp_vir3: rkisp-vir3 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
-		dvbm = <&rkdvbm>;
 		status = "disabled";
-	};
-
-	rockchip_suspend: rockchip-suspend {
-		compatible = "rockchip,pm-config";
-		status = "okay";
-		rockchip,sleep-io-config = <
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_DOWN
-			| RKPM_IO_CFG_ID(0)
-			)
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_DOWN
-			| RKPM_IO_CFG_ID(1)
-			)
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_DOWN
-			| RKPM_IO_CFG_ID(2)
-			)
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_UP
-			| RKPM_IO_CFG_ID(3)
-			)
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_UP
-			| RKPM_IO_CFG_ID(4)
-			)
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_NONE
-			| RKPM_IO_CFG_ID(5)
-			)
-			(0
-			| RKPM_IO_CFG_IOMUX_GPIO
-			| RKPM_IO_CFG_GPIO_DIR_INPUT
-			| RKPM_IO_CFG_PULL_NONE
-			| RKPM_IO_CFG_ID(6)
-			)
-		>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
@@ -753,8 +700,9 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		clocks = <&cru CLK_USER_OTPC_NS>, <&cru CLK_SBPI_OTPC_NS>,
-			 <&cru PCLK_OTPC_NS>, <&cru PCLK_OTP_MASK>;
-		clock-names = "usr", "sbpi", "apb", "phy";
+			 <&cru PCLK_OTPC_NS>, <&cru PCLK_OTP_MASK>,
+			 <&cru CLK_OTPC_ARB>, <&cru CLK_PMC_OTP>;
+		clock-names = "usr", "sbpi", "apb", "phy", "arb", "pmc";
 		resets = <&cru SRST_USER_OTPC_NS>, <&cru SRST_SBPI_OTPC_NS>,
 			 <&cru SRST_P_OTPC_NS>, <&cru SRST_P_OTP_MASK>,
 			 <&cru SRST_OTPC_ARB>, <&cru SRST_PMC_OTP>;
@@ -1143,10 +1091,10 @@
 		#size-cells = <1>;
 		ranges = <0 0xff6c0000 0x40000>;
 		rkisp_sram: rkisp-sram@0 {
-			reg = <0x0 0x3e000>;
+			reg = <0x0 0x3f000>;
 		};
-		hpmcu_sram: hpmcu-sram@3e000 {
-			reg = <0x3e000 0x2000>;
+		hpmcu_sram: hpmcu-sram@3f000 {
+			reg = <0x3f000 0x1000>;
 		};
 	};
 
@@ -1361,7 +1309,6 @@
 				nvmem-cells = <&macphy_txlevel>;
 				nvmem-cell-names = "txlevel";
 				bgs,increment = <2>;
-				rockchip,thermal-zone = "soc-thermal";
 			};
 		};
 
@@ -1417,6 +1364,8 @@
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <75000000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -1474,7 +1423,6 @@
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,usb2-gadget-lpm-disable;
 			snps,usb2-lpm-disable;
-			snps,parkmode-disable-hs-quirk;
 			status = "disabled";
 		};
 	};

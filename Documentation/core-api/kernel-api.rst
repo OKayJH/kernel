@@ -24,8 +24,11 @@ String Conversions
 .. kernel-doc:: lib/vsprintf.c
    :export:
 
-.. kernel-doc:: include/linux/kstrtox.h
-   :functions: kstrtol kstrtoul
+.. kernel-doc:: include/linux/kernel.h
+   :functions: kstrtol
+
+.. kernel-doc:: include/linux/kernel.h
+   :functions: kstrtoul
 
 .. kernel-doc:: lib/kstrtox.c
    :export:

@@ -28,4 +28,26 @@
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
+	dsi {
+		dsi0_reset: dsi0-reset {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+    };
+};
+
+&backlight_dsi0 {
+	status = "disabled";
+};
+
+&backlight_dsi1 {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&pwm1 {
+	status = "disabled";
 };

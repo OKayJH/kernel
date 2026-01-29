@@ -25,7 +25,6 @@ enum csi2_dphy_chip_id {
 	CHIP_ID_RK3588_DCPHY = 0x2,
 	CHIP_ID_RV1106 = 0x3,
 	CHIP_ID_RK3562 = 0x4,
-	CHIP_ID_RV1103B = 0x5,
 };
 
 enum csi2_dphy_rx_pads {
@@ -99,9 +98,8 @@ struct dphy_hw_drv_data {
 	const struct hsfreq_range *hsfreq_ranges_cphy;
 	int num_hsfreq_ranges_cphy;
 	const struct grf_reg *grf_regs;
-	int num_grf_regs;
+	const struct txrx_reg *txrx_regs;
 	const struct csi2dphy_reg *csi2dphy_regs;
-	int num_csi2dphy_regs;
 	void (*individual_init)(struct csi2_dphy_hw *hw);
 	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
@@ -113,6 +111,7 @@ struct csi2_dphy_hw {
 	struct regmap *regmap_grf;
 	struct regmap *regmap_sys_grf;
 	const struct grf_reg *grf_regs;
+	const struct txrx_reg *txrx_regs;
 	const struct csi2dphy_reg *csi2dphy_regs;
 	const struct dphy_hw_drv_data *drv_data;
 	void __iomem *hw_base_addr;
@@ -126,14 +125,11 @@ struct csi2_dphy_hw {
 	int num_sensors;
 	int dphy_dev_num;
 	enum csi2_dphy_lane_mode lane_mode;
-	struct resource *res;
 
 	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*ttl_mode_enable)(struct csi2_dphy_hw *hw);
 	void (*ttl_mode_disable)(struct csi2_dphy_hw *hw);
-	int (*quick_stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
-	int (*quick_stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 };
 
 int rockchip_csi2_dphy_hw_init(void);

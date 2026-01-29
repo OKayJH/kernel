@@ -6,7 +6,6 @@
 #ifndef __LINUX_REGULATOR_RK806_H
 #define __LINUX_REGULATOR_RK806_H
 
-#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -519,8 +518,7 @@ struct rk806 {
 	int vb_lo_irq;
 };
 
-extern const struct regmap_config rk806_regmap_config;
-extern const struct of_device_id rk806_of_match[];
+extern const struct regmap_config rk806_regmap_config_spi;
 int rk806_device_init(struct rk806 *rk806);
 int rk806_device_exit(struct rk806 *rk806);
 int rk806_field_write(struct rk806 *rk806,

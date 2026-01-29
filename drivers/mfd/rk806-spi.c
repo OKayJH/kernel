@@ -12,6 +12,12 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
+static const struct of_device_id rk806_spi_of_match_table[] = {
+	{ .compatible = "rockchip,rk806", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rk806_spi_of_match_table);
+
 static int rk806_spi_write(struct spi_device *spi,
 			   char addr,
 			   const char *data,
@@ -95,7 +101,7 @@ static int rk806_spi_probe(struct spi_device *spi)
 	rk806->regmap = devm_regmap_init(&spi->dev,
 					 &rk806_regmap_bus_spi,
 					 &spi->dev,
-					 &rk806_regmap_config);
+					 &rk806_regmap_config_spi);
 	if (IS_ERR(rk806->regmap)) {
 		dev_err(rk806->dev, "Failed to initialize register map\n");
 		return PTR_ERR(rk806->regmap);
@@ -121,7 +127,7 @@ static struct spi_driver rk806_spi_driver = {
 	.driver		= {
 		.name	= "rk806",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(rk806_of_match),
+		.of_match_table = rk806_spi_of_match_table,
 	},
 	.probe		= rk806_spi_probe,
 	.remove		= rk806_spi_remove,

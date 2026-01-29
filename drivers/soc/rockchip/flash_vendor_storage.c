@@ -250,7 +250,6 @@ static long vendor_storage_ioctl(struct file *file,
 	temp_buf = (u32 *)req;
 
 	switch (cmd) {
-	case VENDOR_READ_IO_COMPAT:
 	case VENDOR_READ_IO:
 	{
 		if (copy_from_user(temp_buf,

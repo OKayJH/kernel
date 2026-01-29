@@ -928,7 +928,6 @@
 };
 
 &u2phy0_otg {
-	rockchip,sel-pipe-phystatus;
 	vbus-supply = <&vbus5v0_typec>;
 };
 

@@ -17,7 +17,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/string_helpers.h>
 
 #include "u_ether.h"
 
@@ -975,8 +974,6 @@ int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len)
 
 	dev = netdev_priv(net);
 	snprintf(host_addr, len, "%pm", dev->host_mac);
-
-	string_upper(host_addr, host_addr);
 
 	return strlen(host_addr);
 }

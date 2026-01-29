@@ -430,15 +430,6 @@ config TOUCHSCREEN_GSLX680_PAD
 config TOUCHSCREEN_GT1X
 	tristate "GT1X touchscreens support"
 
-config TOUCHSCREEN_GT9XX
-	tristate "Goodix gt9xx support for rockchip platform"
-	depends on I2C && ARCH_ROCKCHIP
-	help
-	  Say Y here if you have a touchscreen interface using the gt9xx
-	  on Rockchip platform, and your board-specific initialization
-	  code includes that in its table of IIC devices.
-	  If unsure, say N.
-
 config TOUCHSCREEN_HIDEEP
 	tristate "HiDeep Touch IC"
 	depends on I2C
@@ -1374,19 +1365,14 @@ config TOUCHSCREEN_ZINITIX
 	  To compile this driver as a module, choose M here: the
 	  module will be called zinitix.
 
-config TOUCHSCREEN_HIMAX_CHIPSET
-	bool "Himax touchpanel CHIPSET"
-	depends on I2C
+
+config TOUCHSCREEN_JADARD_CHIPSET
+	bool "Jadard touch chipset"
+	depends on SPI
 	help
-	  Say Y here if you have a Himax CHIPSET touchscreen.
-	  HIMAX controllers are multi touch controllers which can
-	  report 10 touches at a time.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hxchipset.
-
-source "drivers/input/touchscreen/hxchipset/Kconfig"
+	Say Y here if you have a Jadard chipset touchscreen.
+	If unsure, say N.
+	
+source "drivers/input/touchscreen/jdchipset/Kconfig"
 
 endif

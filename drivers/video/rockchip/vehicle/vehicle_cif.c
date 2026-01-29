@@ -37,6 +37,7 @@
 #include <media/v4l2-mediabus.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/phy/phy.h>
 #include <linux/uaccess.h>
@@ -2265,31 +2266,6 @@ static enum cif_reg_index get_reg_index_of_frm0_y_addr(int channel_id)
 	return index;
 }
 
-static enum cif_reg_index get_reg_index_of_frm_num(int channel_id)
-{
-	enum cif_reg_index index;
-
-	switch (channel_id) {
-	case 0:
-		index = CIF_REG_MIPI_FRAME_NUM_VC0;
-		break;
-	case 1:
-		index = CIF_REG_MIPI_FRAME_NUM_VC1;
-		break;
-	case 2:
-		index = CIF_REG_MIPI_FRAME_NUM_VC2;
-		break;
-	case 3:
-		index = CIF_REG_MIPI_FRAME_NUM_VC3;
-		break;
-	default:
-		index = CIF_REG_MIPI_FRAME_NUM_VC0;
-		break;
-	}
-
-	return index;
-}
-
 static enum cif_reg_index get_reg_index_of_frm1_y_addr(int channel_id)
 {
 	enum cif_reg_index index;
@@ -2747,8 +2723,9 @@ static int vehicle_cif_csi_channel_init(struct vehicle_cif *cif,
 			return -EINVAL;
 		}
 	}
-
-	channel->fmt_val = fmt->csi_fmt_val;
+	// channel->fmt_val = fmt->csi_fmt_val;
+	/* set cif input format yuv422*/
+	channel->fmt_val = CSI_WRDDR_TYPE_YUV422;
 	VEHICLE_INFO("%s, LINE=%d, channel->fmt_val = 0x%x, fmt->csi_fmt_val= 0x%x",
 				__func__, __LINE__, channel->fmt_val, fmt->csi_fmt_val);
 	/*
@@ -2781,14 +2758,14 @@ static int vehicle_cif_csi_channel_init(struct vehicle_cif *cif,
 	VEHICLE_DG("%s, LINE=%d, channel->fmt_val = 0x%x", __func__, __LINE__, channel->fmt_val);
 	if (cfg->input_format == CIF_INPUT_FORMAT_PAL ||
 		cfg->input_format == CIF_INPUT_FORMAT_NTSC) {
-		VEHICLE_INFO("CVBS IN PAL or NTSC config.");
+		VEHICLE_DG("CVBS IN PAL or NTSC config.");
 		channel->virtual_width *= 2;
 		cif->interlaced_enable = true;
 		cif->interlaced_offset = channel->width;
 		cif->interlaced_counts = 0;
 		cif->interlaced_buffer = 0;
 		channel->height /= 2;
-		VEHICLE_INFO("do denterlaced.\n");
+		VEHICLE_DG("do denterlaced.\n");
 	}
 
 	channel->data_type = get_data_type(cfg->mbus_code,
@@ -3224,7 +3201,6 @@ static int vehicle_cif_csi2_s_stream(struct vehicle_cif *cif,
 		} else {
 			val |= infmt->csi_yuv_order;
 		}
-
 		rkcif_write_reg(cif, get_reg_index_of_id_ctrl0(channel->id), val);
 		cif->state = RKCIF_STATE_STREAMING;
 	} else {
@@ -3266,7 +3242,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 	channel = &cif->channels[0];
 
 	if (enable) {
-		val = CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE |
+		val = CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE | channel->fmt_val |
 		      channel->cmd_mode_en << 26 | CSI_ENABLE_CROP_V1 |
 		      channel->id << 8 | channel->data_type << 10;
 
@@ -3275,7 +3251,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 			VEHICLE_INFO("Input fmt is invalid, use default!\n");
 			val |= CSI_YUV_INPUT_ORDER_UYVY;
 		} else {
-			val |= infmt->csi_yuv_order | infmt->csi_fmt_val;
+			val |= infmt->csi_yuv_order;
 		}
 
 		if (cfg->output_format == CIF_OUTPUT_FORMAT_420) {
@@ -3954,7 +3930,7 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 	static unsigned long temp_y_addr, temp_uv_addr;
 	int commit_buf = 0;
 	struct vehicle_rkcif_dummy_buffer *dummy_buf = &cif->dummy_buf;
-	u32 frm_num_reg, frame_id = 0;
+
 	VEHICLE_DG("@%s, enter, mipi_id(%d)\n", __func__, mipi_id);
 
 	if ((frame_ready > 1) || (cif->cif_cfg.buf_num < 2) ||
@@ -3970,10 +3946,6 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 		frm0_addr_uv = get_reg_index_of_frm0_uv_addr(mipi_id);
 		frm1_addr_y = get_reg_index_of_frm1_y_addr(mipi_id);
 		frm1_addr_uv = get_reg_index_of_frm1_uv_addr(mipi_id);
-		frm_num_reg = get_reg_index_of_frm_num(mipi_id);
-		frame_id = rkcif_read_reg(cif, frm_num_reg);
-		VEHICLE_DG("@%s, frm_num_reg(0x%x), frame_id:0x%x\n", __func__,
-			   frm_num_reg, frame_id);
 	} else {
 		frm0_addr_y = get_dvp_reg_index_of_frm0_y_addr(mipi_id);
 		frm0_addr_uv = get_dvp_reg_index_of_frm0_uv_addr(mipi_id);
@@ -4007,11 +3979,10 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 		uv_addr = temp_uv_addr;
 		commit_buf = 0;
 	} else {
-		if ((frame_id != 0 && (frame_id & 0xffff) % 2 == 0) ||
-		    (frame_id == 0 && (cif->interlaced_counts % 2 == 0))) {
+		if ((cif->interlaced_counts % 2) == 0) {
 			temp_y_addr = vehicle_flinger_request_cif_buffer();
 			if (temp_y_addr == 0) {
-				VEHICLE_DGERR("%s,warnning request buffer failed\n", __func__);
+				VEHICLE_INFO("%s,warnning request buffer failed\n", __func__);
 				spin_unlock(&cif->vbq_lock);
 				return -1;
 			}
@@ -4024,11 +3995,6 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 			//uv_addr = temp_uv_addr;
 			uv_addr = temp_uv_addr + cif->interlaced_offset;
 			commit_buf = 0; //even & odd field add
-			if (temp_y_addr == 0) {
-				VEHICLE_DGERR("%s,warnning temp_y_addr is NULL!\n", __func__);
-				spin_unlock(&cif->vbq_lock);
-				return -1;
-			}
 		}
 		WARN_ON(y_addr == cif->interlaced_offset);
 		WARN_ON(uv_addr == cif->interlaced_offset);
@@ -4487,37 +4453,6 @@ IRQ_EXIT:
 	return IRQ_HANDLED;
 }
 
-#define vehicle_csi2_err_strncat(dst_str, src_str) {\
-	if (strlen(dst_str) + strlen(src_str) < CSI_ERRSTR_LEN)\
-		strncat(dst_str, src_str, strlen(src_str)); }
-
-static void vehicle_csi2_find_err_vc(int val, char *vc_info)
-{
-	int i;
-	char cur_str[CSI_VCINFO_LEN] = {0};
-
-	memset(vc_info, 0, sizeof(*vc_info));
-	for (i = 0; i < 4; i++) {
-		if ((val >> i) & 0x1) {
-			snprintf(cur_str, CSI_VCINFO_LEN, " %d", i);
-			if (strlen(vc_info) + strlen(cur_str) < CSI_VCINFO_LEN)
-				strncat(vc_info, cur_str, strlen(cur_str));
-		}
-	}
-}
-
-static void vehicle_csi2_err_print_work(struct work_struct *work)
-{
-	struct vehicle_csi2_err_state_work *err_state = container_of(work,
-							struct vehicle_csi2_err_state_work,
-							work);
-
-	pr_err("mipi_csi2: ERR%d:0x%x %s\n", err_state->err_num,
-		err_state->err_val, err_state->err_str);
-	if (err_state->err_num == 1)
-		pr_info("mipi_csi2: err_stat:0x%x\n", err_state->err_stat);
-}
-
 static irqreturn_t vehicle_csirx_irq1(int irq, void *data)
 {
 	struct vehicle_cif *cif = (struct vehicle_cif *)data;
@@ -4525,9 +4460,6 @@ static irqreturn_t vehicle_csirx_irq1(int irq, void *data)
 	struct csi2_err_stats *err_list = NULL;
 	unsigned long err_stat = 0;
 	u32 val;
-	char err_str[CSI_ERRSTR_LEN] = {0};
-	char cur_str[CSI_ERRSTR_LEN] = {0};
-	char vc_info[CSI_VCINFO_LEN] = {0};
 
 	val = read_reg(hw->csi2_base, CSIHOST_ERR1);
 	if (val) {
@@ -4537,69 +4469,53 @@ static irqreturn_t vehicle_csirx_irq1(int irq, void *data)
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
 			err_list = &hw->err_list[RK_CSI2_ERR_SOTSYN];
 			err_list->cnt++;
-
-			vehicle_csi2_find_err_vc(val & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(sot sync,lane:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
+			VEHICLE_DGERR(
+			"ERR1: start of transmission error, reg: 0x%x,cnt:%d\n",
+				val, err_list->cnt);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH) {
 			err_list = &hw->err_list[RK_CSI2_ERR_FS_FE_MIS];
 			err_list->cnt++;
-			vehicle_csi2_find_err_vc((val >> 4) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(fs/fe miss,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-
+			VEHICLE_DGERR(
+			"ERR1: error matching frame start with frame end, reg: 0x%x,cnt:%d\n",
+				val, err_list->cnt);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_SEQ) {
 			err_list = &hw->err_list[RK_CSI2_ERR_FRM_SEQ_ERR];
 			err_list->cnt++;
-			vehicle_csi2_find_err_vc((val >> 8) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(f_seq,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-
+			VEHICLE_DGERR("ERR1: incorrect frame sequence detected, reg: 0x%x,cnt:%d\n",
+				val, err_list->cnt);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_FRM_DATA) {
 			err_list = &hw->err_list[RK_CSI2_ERR_CRC_ONCE];
 			err_list->cnt++;
-			vehicle_csi2_find_err_vc((val >> 12) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(err_data,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-
+			VEHICLE_DGERR("ERR1: at least one crc error, reg: 0x%x\n,cnt:%d",
+				val, err_list->cnt);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_CRC) {
 			err_list = &hw->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
-			vehicle_csi2_find_err_vc((val >> 24) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(crc,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-
+			VEHICLE_DGERR("ERR1: crc errors, reg: 0x%x, cnt:%d\n",
+				 val, err_list->cnt);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_ECC2) {
 			err_list = &hw->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(ecc2) ");
-			vehicle_csi2_err_strncat(err_str, cur_str);
+			VEHICLE_DGERR("ERR1: ecc errors, reg: 0x%x, cnt:%d\n",
+				 val, err_list->cnt);
+		}
+		if (val & CSIHOST_ERR1_ERR_CTRL)
+			VEHICLE_DGERR("ERR1: ctrl errors, reg: 0x%x\n", val);
 
-		}
-		if (val & CSIHOST_ERR1_ERR_CTRL) {
-			vehicle_csi2_find_err_vc((val >> 16) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(ctrl,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-		}
 		hw->err_list[RK_CSI2_ERR_ALL].cnt++;
 		err_stat = ((hw->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt & 0xff) << 8) |
 			    ((hw->err_list[RK_CSI2_ERR_ALL].cnt) & 0xff);
-
-		cif->err_state.err_val = val;
-		cif->err_state.err_num = 1;
-		cif->err_state.err_stat = err_stat;
-		strscpy(cif->err_state.err_str, err_str, CSI_ERRSTR_LEN);
-		queue_work(cif->err_state.err_print_wq, &cif->err_state.work);
+		VEHICLE_INFO("%s: err_stat: %x\n", err_stat);
 
 	}
 
@@ -4611,41 +4527,22 @@ static irqreturn_t vehicle_csirx_irq2(int irq, void *data)
 	struct vehicle_cif *cif = (struct vehicle_cif *)data;
 	struct csi2_dphy_hw *hw = cif->dphy_hw;
 	u32 val;
-	char cur_str[CSI_ERRSTR_LEN] = {0};
-	char err_str[CSI_ERRSTR_LEN] = {0};
-	char vc_info[CSI_VCINFO_LEN] = {0};
 
 	val = read_reg(hw->csi2_base, CSIHOST_ERR2);
 	if (val) {
-		if (val & CSIHOST_ERR2_PHYERR_ESC) {
-			vehicle_csi2_find_err_vc(val & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(ULPM,lane:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-		}
-		if (val & CSIHOST_ERR2_PHYERR_SOTHS) {
-			vehicle_csi2_find_err_vc((val >> 4) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(sot,lane:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-		}
-		if (val & CSIHOST_ERR2_ECC_CORRECTED) {
-			vehicle_csi2_find_err_vc((val >> 8) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(ecc,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-		}
-		if (val & CSIHOST_ERR2_ERR_ID) {
-			vehicle_csi2_find_err_vc((val >> 12) & 0xf, vc_info);
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(err id,vc:%s) ", vc_info);
-			vehicle_csi2_err_strncat(err_str, cur_str);
-		}
-		if (val & CSIHOST_ERR2_PHYERR_CODEHS) {
-			snprintf(cur_str, CSI_ERRSTR_LEN, "(err code) ");
-			vehicle_csi2_err_strncat(err_str, cur_str);
-		}
-		cif->err_state.err_val = val;
-		cif->err_state.err_num = 2;
-		strscpy(cif->err_state.err_str, err_str, CSI_ERRSTR_LEN);
-		queue_work(cif->err_state.err_print_wq, &cif->err_state.work);
-
+		if (val & CSIHOST_ERR2_PHYERR_ESC)
+			VEHICLE_DGERR("ERR2: escape entry error(ULPM), reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR2_PHYERR_SOTHS)
+			VEHICLE_DGERR(
+				"ERR2: start of transmission error, reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR2_ECC_CORRECTED)
+			VEHICLE_DGERR(
+				"ERR2: header error detected and corrected, reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR2_ERR_ID)
+			VEHICLE_DGERR(
+				"ERR2: unrecognized data type detected, reg: 0x%x\n", val);
+		if (val & CSIHOST_ERR2_PHYERR_CODEHS)
+			VEHICLE_DGERR("ERR2: receive error code, reg: 0x%x\n", val);
 	}
 
 	return IRQ_HANDLED;
@@ -4764,7 +4661,6 @@ int vehicle_cif_reverse_close(void)
 	cif->stopping = true;
 	cancel_delayed_work_sync(&(cif->work));
 	flush_delayed_work(&(cif->work));
-	cancel_work_sync(&cif->err_state.work);
 
 	ret = wait_event_timeout(cif->wq_stopped,
 				 cif->state != RKCIF_STATE_STREAMING,
@@ -5136,7 +5032,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		for (i = 0; i < clk->rsts_num; i++) {
 			struct reset_control *rst = NULL;
 
-			if (rk3588_cif_rsts[i])
+			if (rk3568_cif_rsts[i])
 				rst = devm_reset_control_get(dev, rk3588_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3588_cif_rsts[i]);
@@ -5148,7 +5044,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		for (i = 0; i < clk->rsts_num; i++) {
 			struct reset_control *rst = NULL;
 
-			if (rk3562_cif_rsts[i])
+			if (rk3568_cif_rsts[i])
 				rst = devm_reset_control_get(dev, rk3562_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3562_cif_rsts[i]);
@@ -5181,15 +5077,13 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 
 	/*  3. request cif irq & mipi csi irq1-2 */
 	if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF) {
-		ret = devm_request_irq(dev, cif->irq,
-				rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
+		ret = request_irq(cif->irq, rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
 			return -EINVAL;
 		}
 	} else {
-		ret = devm_request_irq(dev, cif->irq,
-				rk_camera_irq, IRQF_SHARED, "vehicle_cif", cif);
+		ret = request_irq(cif->irq, rk_camera_irq, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
 			return -EINVAL;
@@ -5199,14 +5093,14 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	VEHICLE_DG("%s(%d):\n", __func__, __LINE__);
 
 	if (inf_id == RKCIF_MIPI_LVDS) {
-		ret = devm_request_irq(dev, cif->csi2_irq1, vehicle_csirx_irq1,
+		ret = request_irq(cif->csi2_irq1, vehicle_csirx_irq1,
 				IRQF_SHARED, "vehicle_csi_intr1", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request csirx irq1 failed!\n");
 			return -EINVAL;
 		}
 
-		ret = devm_request_irq(dev, cif->csi2_irq2, vehicle_csirx_irq2,
+		ret = request_irq(cif->csi2_irq2, vehicle_csirx_irq2,
 				IRQF_SHARED, "vehicle_csi_intr2", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request csirx irq2 failed!\n");
@@ -5224,7 +5118,6 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	if (inf_id == RKCIF_MIPI_LVDS) {
 		/* 5. set csi2-mipi-dphy reg */
 		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588 ||
-		    cif->dphy_hw->chip_id == CHIP_ID_RK3568 ||
 		    cif->dphy_hw->chip_id == CHIP_ID_RK3562)
 			cif->dphy_hw->csi2_dphy_base = cif->csi2_dphy_base;
 
@@ -5247,13 +5140,6 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	init_waitqueue_head(&cif->wq_stopped);
 
 	spin_lock_init(&cif->vbq_lock);
-
-	INIT_WORK(&cif->err_state.work, vehicle_csi2_err_print_work);
-	cif->err_state.err_print_wq = create_workqueue("cis2_err_print_queue");
-	if (cif->err_state.err_print_wq == NULL) {
-		dev_err(dev, "%s: %s create failed.\n", __func__,
-			"csi2_err_print_wq");
-	}
 
 	return 0;
 }
@@ -5320,14 +5206,10 @@ int vehicle_cif_deinit(struct vehicle_cif *cif)
 		mutex_destroy(&dphy_hw->mutex);
 	}
 
-	devm_free_irq(dev, cif->irq, cif);
+	free_irq(cif->irq, cif);
 	if (inf_id == RKCIF_MIPI_LVDS) {
-		devm_free_irq(dev, cif->csi2_irq1, cif);
-		devm_free_irq(dev, cif->csi2_irq2, cif);
-	}
-	if (cif->err_state.err_print_wq) {
-		flush_workqueue(cif->err_state.err_print_wq);
-		destroy_workqueue(cif->err_state.err_print_wq);
+		free_irq(cif->csi2_irq1, cif);
+		free_irq(cif->csi2_irq2, cif);
 	}
 
 	return 0;

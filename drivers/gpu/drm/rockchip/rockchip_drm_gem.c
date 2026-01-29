@@ -52,12 +52,9 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 
 	rk_obj->dma_addr = rk_obj->mm.start;
 
-	rockchip_drm_dbg(drm->dev, VOP_DEBUG_IOMMU_MAP, "iommu map: iova: %pad size: 0x%zx",
-			 &rk_obj->dma_addr, rk_obj->base.size);
-
 	ret = iommu_map_sgtable(private->domain, rk_obj->dma_addr, rk_obj->sgt,
 				prot);
-	if (ret < (ssize_t)rk_obj->base.size) {
+	if (ret < rk_obj->base.size) {
 		DRM_ERROR("failed to map buffer: size=%zd request_size=%zd\n",
 			  ret, rk_obj->base.size);
 		ret = -ENOMEM;
@@ -82,9 +79,6 @@ static int rockchip_gem_iommu_unmap(struct rockchip_gem_object *rk_obj)
 {
 	struct drm_device *drm = rk_obj->base.dev;
 	struct rockchip_drm_private *private = drm->dev_private;
-
-	rockchip_drm_dbg(drm->dev, VOP_DEBUG_IOMMU_MAP, "iommu unmap: iova: %pad size: %zx",
-			 &rk_obj->dma_addr, rk_obj->size);
 
 	iommu_unmap(private->domain, rk_obj->dma_addr, rk_obj->size);
 
@@ -570,6 +564,9 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	} else {
 		ret = rockchip_drm_gem_object_mmap_dma(obj, vma);
 	}
+
+	if (ret)
+		drm_gem_vm_close(vma);
 
 	return ret;
 }

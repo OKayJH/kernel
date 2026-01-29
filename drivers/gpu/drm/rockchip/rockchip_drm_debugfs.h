@@ -56,7 +56,6 @@ enum vop_dump_status {
 int rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root);
 int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count);
 int rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root);
-int rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root);
 #else
 static inline int
 rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
@@ -72,12 +71,6 @@ rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count)
 
 static inline int
 rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root)
-{
-	return 0;
-}
-
-static inline int
-rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root)
 {
 	return 0;
 }

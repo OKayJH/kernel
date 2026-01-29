@@ -208,16 +208,11 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 		return ERR_PTR(-ESRCH);
 
 	mm = priv->mm;
-	if (!mm || !mmget_not_zero(mm)) {
-		put_task_struct(priv->task);
-		priv->task = NULL;
+	if (!mm || !mmget_not_zero(mm))
 		return NULL;
-	}
 
 	if (mmap_read_lock_killable(mm)) {
 		mmput(mm);
-		put_task_struct(priv->task);
-		priv->task = NULL;
 		return ERR_PTR(-EINTR);
 	}
 
@@ -226,21 +221,23 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 		if (n-- == 0)
 			return p;
 
+	mmap_read_unlock(mm);
+	mmput(mm);
 	return NULL;
 }
 
-static void m_stop(struct seq_file *m, void *v)
+static void m_stop(struct seq_file *m, void *_vml)
 {
 	struct proc_maps_private *priv = m->private;
-	struct mm_struct *mm = priv->mm;
 
-	if (!priv->task)
-		return;
-
-	mmap_read_unlock(mm);
-	mmput(mm);
-	put_task_struct(priv->task);
-	priv->task = NULL;
+	if (!IS_ERR_OR_NULL(_vml)) {
+		mmap_read_unlock(priv->mm);
+		mmput(priv->mm);
+	}
+	if (priv->task) {
+		put_task_struct(priv->task);
+		priv->task = NULL;
+	}
 }
 
 static void *m_next(struct seq_file *m, void *_p, loff_t *pos)

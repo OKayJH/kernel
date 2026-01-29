@@ -852,8 +852,8 @@ static int rkvenc_devfreq_target(struct device *dev,
 	struct dev_pm_opp *opp;
 	unsigned long target_volt, target_freq;
 	int ret = 0;
-	struct mpp_dev *mpp = dev_get_drvdata(dev);
-	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+
+	struct rkvenc_dev *enc = dev_get_drvdata(dev);
 	struct devfreq *devfreq = enc->devfreq;
 	struct devfreq_dev_status *stat = &devfreq->last_status;
 	unsigned long old_clk_rate = stat->current_frequency;
@@ -915,8 +915,7 @@ static int rkvenc_devfreq_get_dev_status(struct device *dev,
 static int rkvenc_devfreq_get_cur_freq(struct device *dev,
 				       unsigned long *freq)
 {
-	struct mpp_dev *mpp = dev_get_drvdata(dev);
-	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct rkvenc_dev *enc = dev_get_drvdata(dev);
 
 	*freq = enc->core_last_rate_hz;
 
@@ -956,14 +955,13 @@ static struct devfreq_governor devfreq_venc_ondemand = {
 static unsigned long rkvenc_get_static_power(struct devfreq *devfreq,
 					     unsigned long voltage)
 {
-	struct device *dev = devfreq->dev.parent;
-	struct mpp_dev *mpp = dev_get_drvdata(dev);
-	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct rkvenc_dev *enc = devfreq->data;
 
-	if (!enc || !enc->model_data)
+	if (!enc->model_data)
 		return 0;
-
-	return rockchip_ipa_get_static_power(enc->model_data, voltage);
+	else
+		return rockchip_ipa_get_static_power(enc->model_data,
+						     voltage);
 }
 
 static struct devfreq_cooling_power venc_cooling_power_data = {
@@ -1234,7 +1232,7 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	}
 	INIT_WORK(&enc->iommu_work, rkvenc_iommu_handle_work);
 
-	mpp->fault_handler = rkvenc_iommu_fault_handle;
+	mpp->iommu_info->hdl = rkvenc_iommu_fault_handle;
 
 	return ret;
 }
@@ -1463,7 +1461,7 @@ static int rkvenc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
-					NULL,
+					mpp_dev_isr_sched,
 					IRQF_SHARED,
 					dev_name(dev), mpp);
 	if (ret) {
@@ -1504,6 +1502,5 @@ struct platform_driver rockchip_rkvenc_driver = {
 	.driver = {
 		.name = RKVENC_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_rkvenc_dt_match),
-		.pm = &mpp_common_pm_ops,
 	},
 };

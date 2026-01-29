@@ -1200,7 +1200,7 @@ static struct streams_ops rkisp2_dmatx0_streams_ops = {
 	.config_mi = dmatx0_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx0_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1209,7 +1209,7 @@ static struct streams_ops rkisp2_dmatx1_streams_ops = {
 	.config_mi = dmatx1_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx1_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1218,7 +1218,7 @@ static struct streams_ops rkisp2_dmatx2_streams_ops = {
 	.config_mi = dmatx2_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx2_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1227,7 +1227,7 @@ static struct streams_ops rkisp2_dmatx3_streams_ops = {
 	.config_mi = dmatx3_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx3_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1392,10 +1392,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;
 		if (!ns)
-			ns = rkisp_time_get_ns(dev);
+			ns = ktime_get_ns();
 		vb2_buf->timestamp = ns;
 
-		ns = rkisp_time_get_ns(dev);
+		ns = ktime_get_ns();
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = stream->curr_buf->vb.sequence;
@@ -1439,7 +1439,7 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 				u32 sizeimage = vb2_plane_size(&stream->curr_buf->vb.vb2_buf, 0);
 				u32 *buf = (u32 *)vb2_plane_vaddr(&stream->curr_buf->vb.vb2_buf, 0);
 
-				*(u64 *)(buf + sizeimage / 4 - 2) = rkisp_time_get_ns(dev);
+				*(u64 *)(buf + sizeimage / 4 - 2) = ktime_get_ns();
 				stream->curr_buf->dev_id = dev->dev_id;
 				rkisp_bridge_save_spbuf(dev, stream->curr_buf);
 			} else {
@@ -1638,12 +1638,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
-		ispbuf->vaddr[i] = vb2_plane_vaddr(vb, i);
-		if (rkisp_buf_dbg && ispbuf->vaddr[i]) {
-			u64 *data = ispbuf->vaddr[i];
-
-			*data = RKISP_DATA_CHECK;
-		}
+		vb2_plane_vaddr(vb, i);
 		if (stream->ispdev->hw_dev->is_dma_sg_ops) {
 			sgt = vb2_dma_sg_plane_desc(vb, i);
 			ispbuf->buff_addr[i] = sg_dma_address(sgt->sgl);

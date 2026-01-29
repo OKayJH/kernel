@@ -89,20 +89,6 @@ enum lvds_format {
 	LVDS_10BIT_MODE_FORMAT_2,
 };
 
-enum rockchip_lvds_dual_link_pixels {
-	ROCKCHIP_LVDS_DUAL_LINK_EVEN_ODD_PIXELS = 0,
-	ROCKCHIP_LVDS_DUAL_LINK_ODD_EVEN_PIXELS = 1,
-	ROCKCHIP_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS = 2,
-	ROCKCHIP_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS = 3,
-};
-
-enum rockchip_of_lvds_pixels {
-	ROCKCHIP_OF_LVDS_EVEN = BIT(0),
-	ROCKCHIP_OF_LVDS_ODD = BIT(1),
-	ROCKCHIP_OF_LVDS_LEFT = BIT(2),
-	ROCKCHIP_OF_LVDS_RIGHT = BIT(3),
-};
-
 struct rockchip_lvds;
 
 struct rockchip_lvds_funcs {
@@ -121,7 +107,7 @@ struct rockchip_lvds {
 	bool data_swap;
 	bool dual_channel;
 	bool phy_enabled;
-	enum rockchip_lvds_dual_link_pixels pixel_order;
+	enum drm_lvds_dual_link_pixels pixel_order;
 
 	struct rockchip_lvds *primary;
 	struct rockchip_lvds *secondary;
@@ -133,99 +119,6 @@ struct rockchip_lvds {
 	struct drm_display_mode mode;
 	struct rockchip_drm_sub_dev sub_dev;
 };
-
-static int rockchip_of_lvds_get_port_pixels_type(struct device_node *port_node)
-{
-	bool even_pixels =
-		of_property_read_bool(port_node, "dual-lvds-even-pixels");
-	bool odd_pixels =
-		of_property_read_bool(port_node, "dual-lvds-odd-pixels");
-	bool left_pixels =
-		of_property_read_bool(port_node, "dual-lvds-left-pixels");
-	bool right_pixels =
-		of_property_read_bool(port_node, "dual-lvds-right-pixels");
-
-	return (even_pixels ? ROCKCHIP_OF_LVDS_EVEN : 0) |
-	       (odd_pixels ? ROCKCHIP_OF_LVDS_ODD : 0) |
-	       (left_pixels ? ROCKCHIP_OF_LVDS_LEFT : 0) |
-	       (right_pixels ? ROCKCHIP_OF_LVDS_RIGHT : 0);
-}
-
-static int rockchip_of_lvds_get_remote_pixels_type(
-			const struct device_node *port_node)
-{
-	struct device_node *endpoint = NULL;
-	int pixels_type = -EPIPE;
-
-	for_each_child_of_node(port_node, endpoint) {
-		struct device_node *remote_port;
-		int current_pt;
-
-		if (!of_node_name_eq(endpoint, "endpoint"))
-			continue;
-
-		remote_port = of_graph_get_remote_port(endpoint);
-		if (!remote_port) {
-			of_node_put(endpoint);
-			return -EPIPE;
-		}
-
-		current_pt = rockchip_of_lvds_get_port_pixels_type(remote_port);
-		of_node_put(remote_port);
-		if (pixels_type < 0)
-			pixels_type = current_pt;
-
-		/*
-		 * Sanity check, ensure that all remote endpoints have the same
-		 * pixel type. We may lift this restriction later if we need to
-		 * support multiple sinks with different dual-link
-		 * configurations by passing the endpoints explicitly to
-		 * rockchip_of_lvds_get_dual_link_pixel_order().
-		 */
-		if (!current_pt || pixels_type != current_pt) {
-			of_node_put(endpoint);
-			return -EINVAL;
-		}
-	}
-
-	return pixels_type;
-}
-
-static int rockchip_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
-						      const struct device_node *port2)
-{
-	int remote_p1_pt, remote_p2_pt;
-
-	if (!port1 || !port2)
-		return -EINVAL;
-
-	remote_p1_pt = rockchip_of_lvds_get_remote_pixels_type(port1);
-	if (remote_p1_pt < 0)
-		return remote_p1_pt;
-
-	remote_p2_pt = rockchip_of_lvds_get_remote_pixels_type(port2);
-	if (remote_p2_pt < 0)
-		return remote_p2_pt;
-
-	/*
-	 * A valid dual-lVDS bus is found when one remote port is marked with
-	 * "dual-lvds-even-pixels" or "dual-lvds-left-pixels", and the other
-	 * remote port is marked with "dual-lvds-odd-pixels"or
-	 * "dual-lvds-right-pixels", bail out if the markers are not right.
-	 */
-	if ((remote_p1_pt + remote_p2_pt != ROCKCHIP_OF_LVDS_EVEN + ROCKCHIP_OF_LVDS_ODD) &&
-	    (remote_p1_pt + remote_p2_pt != ROCKCHIP_OF_LVDS_LEFT + ROCKCHIP_OF_LVDS_RIGHT))
-		return -EINVAL;
-
-	if (remote_p1_pt == ROCKCHIP_OF_LVDS_EVEN)
-		return ROCKCHIP_LVDS_DUAL_LINK_EVEN_ODD_PIXELS;
-	else if (remote_p1_pt == ROCKCHIP_OF_LVDS_ODD)
-		return ROCKCHIP_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
-	else if (remote_p1_pt == ROCKCHIP_OF_LVDS_LEFT)
-		return ROCKCHIP_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS;
-	else
-		return ROCKCHIP_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS;
-}
 
 static inline struct rockchip_lvds *connector_to_lvds(struct drm_connector *c)
 {
@@ -343,24 +236,29 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	switch (lvds->pixel_order) {
-	case ROCKCHIP_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:
+	case DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE;
 		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
 		break;
-	case ROCKCHIP_LVDS_DUAL_LINK_EVEN_ODD_PIXELS:
+	case DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS:
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE;
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
 		break;
-	case ROCKCHIP_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS:
+/*
+ * Fix me: To do it with a GKI compatible version.
+ */
+#if 0
+	case DRM_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS:
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
 		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
 		break;
-	case ROCKCHIP_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS:
+	case DRM_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS:
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
 		break;
+#endif
 	default:
 		if (lvds->id)
 			s->output_if |= VOP_OUTPUT_IF_LVDS1;
@@ -494,8 +392,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &lvds->encoder;
-	struct drm_connector *connector = NULL;
-	struct rockchip_drm_private *private = drm_dev->dev_private;
+	struct drm_connector *connector = &lvds->connector;
 	int ret;
 
 	/*
@@ -523,7 +420,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	drm_encoder_helper_add(encoder, &rockchip_lvds_encoder_helper_funcs);
 
 	if (lvds->panel) {
-		connector = &lvds->connector;
+		struct rockchip_drm_private *private = drm_dev->dev_private;
+
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
 					 DRM_MODE_CONNECTOR_LVDS);
@@ -531,15 +429,6 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 			DRM_DEV_ERROR(drm_dev->dev,
 				      "failed to initialize connector: %d\n", ret);
 			goto err_free_encoder;
-		}
-
-		if (lvds->secondary) {
-			kfree(connector->name);
-			connector->name = kasprintf(GFP_KERNEL, "LVDS-DUAL");
-			if (!connector->name) {
-				ret = -ENOMEM;
-				goto err_free_connector;
-			}
 		}
 
 		drm_connector_helper_add(connector,
@@ -551,29 +440,19 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 				      "failed to attach encoder: %d\n", ret);
 			goto err_free_connector;
 		}
-	} else {
-		struct list_head *connector_list;
 
+		lvds->sub_dev.connector = &lvds->connector;
+		lvds->sub_dev.of_node = lvds->dev->of_node;
+		lvds->sub_dev.loader_protect = rockchip_lvds_encoder_loader_protect;
+		rockchip_drm_register_sub_dev(&lvds->sub_dev);
+		drm_object_attach_property(&connector->base, private->connector_id_prop, 0);
+	} else {
 		ret = drm_bridge_attach(encoder, lvds->bridge, NULL, 0);
 		if (ret) {
 			DRM_DEV_ERROR(lvds->dev,
 				      "failed to attach bridge: %d\n", ret);
 			goto err_free_encoder;
 		}
-		connector_list = &lvds->bridge->dev->mode_config.connector_list;
-
-		list_for_each_entry(connector, connector_list, head)
-			if (drm_connector_has_possible_encoder(connector, &lvds->encoder))
-				break;
-
-	}
-
-	if (connector) {
-		lvds->sub_dev.connector = connector;
-		lvds->sub_dev.of_node = lvds->dev->of_node;
-		lvds->sub_dev.loader_protect = rockchip_lvds_encoder_loader_protect;
-		drm_object_attach_property(&connector->base, private->connector_id_prop, lvds->id);
-		rockchip_drm_register_sub_dev(&lvds->sub_dev);
 	}
 
 	return 0;
@@ -767,7 +646,7 @@ static const struct rockchip_lvds_funcs rk3368_lvds_funcs = {
 	.disable = rk3368_lvds_disable,
 };
 
-static int rk3568_lvds_probe(struct rockchip_lvds *lvds)
+static int __maybe_unused rockchip_secondary_lvds_probe(struct rockchip_lvds *lvds)
 {
 	if (lvds->dual_channel) {
 		struct rockchip_lvds *secondary = NULL;
@@ -780,7 +659,7 @@ static int rk3568_lvds_probe(struct rockchip_lvds *lvds)
 
 		port0 = of_graph_get_port_by_id(lvds->dev->of_node, 1);
 		port1 = of_graph_get_port_by_id(secondary->dev->of_node, 1);
-		pixel_order = rockchip_of_lvds_get_dual_link_pixel_order(port0, port1);
+		pixel_order = drm_of_lvds_get_dual_link_pixel_order(port0, port1);
 		of_node_put(port1);
 		of_node_put(port0);
 
@@ -813,37 +692,19 @@ static const struct rockchip_lvds_funcs rk3562_lvds_funcs = {
 
 static void rk3568_lvds_enable(struct rockchip_lvds *lvds)
 {
-	if (lvds->id) {
-		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
-			     RK3568_LVDS1_MODE_EN(1) |
-			     RK3568_LVDS1_P2S_EN(1) |
-			     RK3568_LVDS1_DCLK_INV_SEL(1));
-		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
-			     RK3568_LVDS1_SELECT(lvds->format) |
-			     RK3568_LVDS1_MSBSEL(1));
-	} else {
-		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
-			     RK3568_LVDS0_MODE_EN(1) |
-			     RK3568_LVDS0_P2S_EN(1) |
-			     RK3568_LVDS0_DCLK_INV_SEL(1));
-		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
-			     RK3568_LVDS0_SELECT(lvds->format) |
-			     RK3568_LVDS0_MSBSEL(1));
-	}
+	regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
+		     RK3568_LVDS0_MODE_EN(1) | RK3568_LVDS0_P2S_EN(1) |
+		     RK3568_LVDS0_DCLK_INV_SEL(1));
+	regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
+		     RK3568_LVDS0_SELECT(lvds->format) | RK3568_LVDS0_MSBSEL(1));
 }
 
 static void rk3568_lvds_disable(struct rockchip_lvds *lvds)
 {
-	if (lvds->id)
-		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
-			     RK3568_LVDS1_MODE_EN(0));
-	else
-		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
-			     RK3568_LVDS0_MODE_EN(0));
+	regmap_write(lvds->grf, RK3568_GRF_VO_CON2, RK3568_LVDS0_MODE_EN(0));
 }
 
 static const struct rockchip_lvds_funcs rk3568_lvds_funcs = {
-	.probe = rk3568_lvds_probe,
 	.enable = rk3568_lvds_enable,
 	.disable = rk3568_lvds_disable,
 };

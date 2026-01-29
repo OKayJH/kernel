@@ -145,7 +145,6 @@ struct data_chunk {
  *		Otherwise, destination is filled contiguously (icg ignored).
  *		Ignored if dst_inc is false.
  * @numf: Number of frames in this template.
- * @nump: Number of period frames in this template.
  * @frame_size: Number of chunks in a frame i.e, size of sgl[].
  * @sgl: Array of {chunk,icg} pairs that make up a frame.
  */
@@ -158,9 +157,6 @@ struct dma_interleaved_template {
 	bool src_sgl;
 	bool dst_sgl;
 	size_t numf;
-#ifdef CONFIG_NO_GKI
-	size_t nump;
-#endif
 	size_t frame_size;
 	struct data_chunk sgl[];
 };
@@ -453,6 +449,10 @@ struct dma_slave_config {
 	unsigned int slave_id;
 	void *peripheral_config;
 	size_t peripheral_size;
+#ifdef CONFIG_NO_GKI
+	unsigned int src_interlace_size;
+	unsigned int dst_interlace_size;
+#endif
 };
 
 /**
