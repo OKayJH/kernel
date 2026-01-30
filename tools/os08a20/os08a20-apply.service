@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply OS08A20 exposure/gain settings
+After=multi-user.target
+ConditionPathExists=/etc/os08a20.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/os08a20_camctl.py apply
+
+[Install]
+WantedBy=multi-user.target
+
+
