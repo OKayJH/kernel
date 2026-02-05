@@ -470,8 +470,8 @@
 		avdd-supply = <&cam_avdd>;
 		dovdd-supply = <&cam_dovdd>;
 		dvdd-supply = <&cam_dvdd>;
-		pwdn-gpios = <&gpio6 8 GPIO_ACTIVE_HIGH>;//没用
-		reset-gpios = <&gpio6 9 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
 
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";

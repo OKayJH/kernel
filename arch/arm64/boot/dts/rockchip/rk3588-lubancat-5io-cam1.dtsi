@@ -26,6 +26,10 @@
 	status = "okay";
 };
 
+&dcphy1_os08a20 {
+	status = "okay";
+};
+
 &dcphy1_gc08a8 {
 	status = "disabled";
 };

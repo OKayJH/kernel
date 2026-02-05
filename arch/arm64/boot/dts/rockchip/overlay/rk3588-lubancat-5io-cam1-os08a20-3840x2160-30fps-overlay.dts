@@ -13,7 +13,7 @@
 / {
 /* Link path: sensor->csi2_dphy1->mipi2_csi2->rkcif_mipi_lvds2--->rkcif_mipi_lvds2_sditf->rkisp0_vir2 */
 	fragment@0 {
-		target = <&i2c5>;
+		target = <&i2c1>;
 		__overlay__ {
 			status = "okay";
 		};
@@ -27,6 +27,9 @@
 			rockchip,camera-module-sync-mode = "slave";
 			/* FSIN is wired to GPIO1_D6 (RK_PD6) */
 			fsin-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_LOW>;
+			/* 如需临时调试，可改为其它 GPIO，例如： */
+			//fsin-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+
 			/* Pulse width in microseconds (logical active time) */
 			rockchip,fsin-pulse-us = <50>;
 			rockchip,default-exposure = <30>;
