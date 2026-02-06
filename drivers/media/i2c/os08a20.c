@@ -366,6 +366,9 @@
 	 u64 frame_ns;
 	 u32 frame_us;
 	u32 settle_us;
+	u32 vblank_val = 0;
+	u32 vts_now = 0;
+	u32 base_wait_us = 0;
 	 u64 now_ns;
 	 struct i2c_client *client = os08a20->client;
 	 int ret;
@@ -426,11 +429,11 @@
 	 ret = os08a20_pulse_fsin_gpio(os08a20);
  
 	if (os08a20->trigger_frame_wait_us)
-		frame_us = os08a20->trigger_frame_wait_us;
+		base_wait_us = os08a20->trigger_frame_wait_us;
 	else
-		frame_us = (u32)DIV_ROUND_UP_ULL(frame_ns, 1000);
+		base_wait_us = (u32)DIV_ROUND_UP_ULL(frame_ns, 1000);
 
-	frame_us += os08a20->trigger_frame_margin_us;
+	frame_us = base_wait_us + os08a20->trigger_frame_margin_us;
 	 if (frame_us < 1000)
 		 frame_us = 1000;
  
@@ -442,6 +445,22 @@
 	 if (!ret) {
 		 os08a20->trigger_count++;
 		 os08a20->last_trigger_ns = ktime_get_ns();
+
+		if (os08a20->vblank) {
+			vblank_val = os08a20->vblank->val;
+			vts_now = os08a20->cur_mode->height + vblank_val;
+		}
+
+		dev_info(&client->dev,
+			 "trigger capture: OK (count=%u wait_us=%u base_wait_us=%u margin_us=%u vblank=%u vts=%u)\n",
+			 os08a20->trigger_count,
+			 frame_us,
+			 base_wait_us,
+			 os08a20->trigger_frame_margin_us,
+			 vblank_val,
+			 vts_now);
+	} else {
+		dev_warn(&client->dev, "trigger capture: FAIL (ret=%d)\n", ret);
 	 }
  
  out_pm_put:
