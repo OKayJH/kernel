@@ -111,6 +111,12 @@
  /* External FSIN trigger (single-frame) */
  #define OF_FSIN_PULSE_US		"rockchip,fsin-pulse-us"
  #define OS08A20_FSIN_PULSE_US_DEFAULT	50u
+#define OF_FSIN_SETTLE_US		"rockchip,fsin-settle-us"
+#define OS08A20_FSIN_SETTLE_US_DEFAULT	200u
+
+/* Optional timing knobs for single-frame trigger */
+#define OF_TRIGGER_FRAME_WAIT_US	"rockchip,trigger-frame-wait-us"
+#define OF_TRIGGER_FRAME_MARGIN_US	"rockchip,trigger-frame-margin-us"
  
  /* Optional defaults (persistent across reboot via DT/overlay) */
  #define OF_DEFAULT_EXPOSURE		"rockchip,default-exposure"
@@ -207,6 +213,9 @@
 	 enum rkmodule_sync_mode	sync_mode;
 	 enum rkmodule_sync_mode	dt_sync_mode;
 	 u32			fsin_pulse_us;
+	u32			fsin_settle_us;
+	u32			trigger_frame_wait_us;
+	u32			trigger_frame_margin_us;
 	 u32			default_exposure;
 	 u32			default_anal_gain;
  };
@@ -230,11 +239,31 @@
  static inline u64 os08a20_frame_interval_ns(const struct os08a20 *os08a20)
  {
 	 const struct v4l2_fract *fi = &os08a20->cur_mode->max_fps;
+	u64 base_ns;
+	u64 vts_now;
+	u32 vts_def;
  
 	 if (!fi->denominator)
 		 return 0;
  
-	 return div_u64((u64)NSEC_PER_SEC * fi->numerator, fi->denominator);
+	/*
+	 * Base frame interval comes from the mode's nominal max_fps (which matches
+	 * vts_def). In real pipelines, fps may be reduced by increasing VTS/VBlank
+	 * (e.g. low-light long exposure). Scale the interval by current VTS so we
+	 * don't return to standby too early and miss frames.
+	 */
+	base_ns = div_u64((u64)NSEC_PER_SEC * fi->numerator, fi->denominator);
+
+	vts_def = os08a20->cur_mode->vts_def;
+	if (!vts_def || !os08a20->vblank)
+		return base_ns;
+
+	/* VTS = height + vblank (both are in lines). */
+	vts_now = (u64)os08a20->cur_mode->height + (u64)os08a20->vblank->val;
+	if (!vts_now)
+		return base_ns;
+
+	return div_u64(base_ns * vts_now, vts_def);
  }
  
  static int os08a20_pulse_fsin_gpio(struct os08a20 *os08a20)
@@ -336,6 +365,7 @@
  {
 	 u64 frame_ns;
 	 u32 frame_us;
+	u32 settle_us;
 	 u64 now_ns;
 	 struct i2c_client *client = os08a20->client;
 	 int ret;
@@ -388,11 +418,19 @@
 	 os08a20_apply_white_balance(os08a20);
  
 	 /* Let the sensor settle a bit before the FSIN edge. */
-	 usleep_range(200, 500);
+	settle_us = os08a20->fsin_settle_us;
+	if (!settle_us)
+		settle_us = OS08A20_FSIN_SETTLE_US_DEFAULT;
+	usleep_range(settle_us, settle_us + 200);
  
 	 ret = os08a20_pulse_fsin_gpio(os08a20);
  
-	 frame_us = (u32)DIV_ROUND_UP_ULL(frame_ns, 1000);
+	if (os08a20->trigger_frame_wait_us)
+		frame_us = os08a20->trigger_frame_wait_us;
+	else
+		frame_us = (u32)DIV_ROUND_UP_ULL(frame_ns, 1000);
+
+	frame_us += os08a20->trigger_frame_margin_us;
 	 if (frame_us < 1000)
 		 frame_us = 1000;
  
@@ -1826,6 +1864,17 @@
  
 	 os08a20->fsin_pulse_us = OS08A20_FSIN_PULSE_US_DEFAULT;
 	 of_property_read_u32(node, OF_FSIN_PULSE_US, &os08a20->fsin_pulse_us);
+
+	os08a20->fsin_settle_us = OS08A20_FSIN_SETTLE_US_DEFAULT;
+	of_property_read_u32(node, OF_FSIN_SETTLE_US, &os08a20->fsin_settle_us);
+
+	os08a20->trigger_frame_wait_us = 0;
+	of_property_read_u32(node, OF_TRIGGER_FRAME_WAIT_US,
+			     &os08a20->trigger_frame_wait_us);
+
+	os08a20->trigger_frame_margin_us = 0;
+	of_property_read_u32(node, OF_TRIGGER_FRAME_MARGIN_US,
+			     &os08a20->trigger_frame_margin_us);
  
 	 os08a20->xvclk = devm_clk_get(dev, "xvclk");
 	 if (IS_ERR(os08a20->xvclk)) {
@@ -1850,10 +1899,14 @@
 		 return dev_err_probe(dev, PTR_ERR(os08a20->fsin_gpio),
 					  "Failed to get fsin-gpios\n");
  
-	 dev_info(dev, "sync_mode(dt)=%u, fsin_gpio=%s, fsin_pulse_us=%u, fsin_trigger=%d\n",
+	dev_info(dev,
+		 "sync_mode(dt)=%u, fsin_gpio=%s, fsin_pulse_us=%u, fsin_settle_us=%u, trigger_wait_us=%u, trigger_margin_us=%u, fsin_trigger=%d\n",
 		  os08a20->dt_sync_mode,
 		  os08a20->fsin_gpio ? "yes" : "no",
 		  os08a20->fsin_pulse_us,
+		 os08a20->fsin_settle_us,
+		 os08a20->trigger_frame_wait_us,
+		 os08a20->trigger_frame_margin_us,
 		  os08a20_use_fsin_trigger(os08a20));
  
 	 ret = os08a20_configure_regulators(os08a20);
