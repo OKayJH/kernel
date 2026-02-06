@@ -1,0 +1,63 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/linux-event-codes.h>
+
+/ {
+	fragment@0 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			trigger_dev {
+				trigger_dev_pin: trigger-dev-pin {
+					/* GPIO1_A3 */
+					rockchip,pins = <1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_down>;
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+
+		__overlay__ {
+			trigger_dev: trigger-dev {
+				compatible = "embedfire,trigger-dev";
+				status = "okay";
+
+				/* Physical input (button): active high means pressed = 1 */
+
+                /* 计划用GPIO1_A3 */
+				//input-gpios = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+				//interrupt-parent = <&gpio1>;
+				//interrupts = <RK_PA3 IRQ_TYPE_EDGE_BOTH>;
+
+                /* 调试用GPIO0_B7 */
+				input-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <RK_PB7 IRQ_TYPE_EDGE_BOTH>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&trigger_dev_pin>;
+
+				/* Debounce in ms (software fallback if HW debounce unsupported) */
+				debounce-ms = <20>;
+
+				/* Optional input event code */
+				linux,code = <KEY_CAMERA>;
+
+				/*
+				 * Trigger action (same effect as):
+				 *   echo 1 > /sys/bus/i2c/devices/5-0036/trigger
+				 */
+				trigger-path = "/sys/bus/i2c/devices/5-0036/trigger";
+				trigger-value = "1";
+			};
+		};
+	};
+};
+
+
