@@ -459,6 +459,31 @@
 			};
 		};
 	};
+
+	dcphy1_os08a20: dcphy1-os08a20@36 {
+		compatible = "ovti,os08a20";
+		status = "disabled";
+		reg = <0x36>;
+		clocks = <&ext_cam_24m_clk>;
+		clock-names = "xvclk";
+		// power-domains = <&power RK3588_PD_VI>;
+		avdd-supply = <&cam_avdd>;
+		dovdd-supply = <&cam_dovdd>;
+		dvdd-supply = <&cam_dvdd>;
+		pwdn-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			os08a20_dcphy1_out: endpoint {
+				remote-endpoint = <&dcphy1_in_os08a20>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};	
 };
 
 //CAM 2
@@ -1566,6 +1591,12 @@
 				remote-endpoint = <&gc4653_dcphy1_out>;
 				data-lanes = <1 2>;
 			};
+
+			dcphy1_in_os08a20: endpoint@8 {
+				reg = <8>;
+				remote-endpoint = <&os08a20_dcphy1_out>;
+				data-lanes = <1 2 3 4>;
+			};			
 		};
 
 		port@1 {

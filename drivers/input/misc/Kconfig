@@ -275,6 +275,21 @@ config INPUT_GPIO_DECODER
 	 To compile this driver as a module, choose M here: the module
 	 will be called gpio_decoder.
 
+config INPUT_TRIGGER_DEV
+	tristate "Generic GPIO input trigger device (write sysfs on press)"
+	depends on GPIOLIB || COMPILE_TEST
+	depends on INPUT
+	depends on OF || COMPILE_TEST
+	help
+	  Say Y/M here to enable a generic GPIO input device named "trigger-dev".
+	  It reports a key event to the input subsystem and, on each valid press
+	  (one-shot per press, release required before next), it writes a
+	  configurable payload to a configurable sysfs path, e.g.:
+	    echo 1 > /sys/bus/i2c/devices/1-0036/trigger
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called trigger-dev.
+
 config INPUT_GPIO_VIBRA
 	tristate "GPIO vibrator support"
 	depends on GPIOLIB || COMPILE_TEST

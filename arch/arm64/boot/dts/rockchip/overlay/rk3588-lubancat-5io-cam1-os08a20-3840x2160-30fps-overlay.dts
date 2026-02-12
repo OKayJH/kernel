@@ -1,0 +1,129 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/rockchip_vop.h>
+#include <dt-bindings/sensor-dev.h>
+
+/ {
+/* Link path: sensor->csi2_dphy1->mipi2_csi2->rkcif_mipi_lvds2--->rkcif_mipi_lvds2_sditf->rkisp0_vir2 */
+	fragment@0 {
+		target = <&i2c1>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&dcphy1_os08a20>;
+		__overlay__ {
+			status = "okay";
+			/* External single-frame trigger via FSIN pin */
+			rockchip,camera-module-sync-mode = "slave";
+			/* FSIN is wired to GPIO1_D6 (RK_PD6) */
+			fsin-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_LOW>;
+			/* 如需临时调试，可改为其它 GPIO，例如： */
+			//fsin-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+
+			/* Pulse width in microseconds (logical active time) */
+			rockchip,fsin-pulse-us = <50>;
+			/*
+			 * 触发时序调参（可选）：
+			 * - rockchip,fsin-settle-us：打 FSIN 脉冲前的等待(us)，默认 200
+			 * - rockchip,trigger-frame-margin-us：FSIN 后额外等待(us)，默认 0
+			 * - rockchip,trigger-frame-wait-us：覆盖等待一帧时间(us)，默认 0=自动
+			 */
+			//rockchip,fsin-settle-us = <200>;
+			//rockchip,trigger-frame-margin-us = <5000>;
+			//rockchip,trigger-frame-wait-us = <0>;
+			rockchip,default-exposure = <30>;
+			rockchip,default-analogue-gain = <1024>;
+		};
+	};
+
+	fragment@2 {
+		target = <&csi2_dcphy1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&mipi1_csi2>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&mipi_dcphy1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@5 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif_mipi_lvds1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mipi_lvds1_sditf>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@8 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&rkisp1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&isp1_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@11 {
+		target = <&rkisp1_vir0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
+
