@@ -25,15 +25,6 @@ dtbo-$(CONFIG_CPU_RK3562) += \
 	rk3562-lubancat-can1-m1-overlay.dtbo \
 	rk3562-lubancat-canfd0-m2-overlay.dtbo \
 	rk3562-lubancat-canfd1-m1-overlay.dtbo \
-	rk3562-lubancat-1hs-rs485-1-overlay.dtbo \
-	rk3562-lubancat-1hs-rs485-2-overlay.dtbo \
-	rk3562-lubancat-1hs-lvds-10.1-800x1280-overlay.dtbo \
-	rk3562-lubancat-1hs-lvds-1280x800-10.1inch-bsdn10-overlay.dtbo \
-	rk3562-lubancat-1hs-mipi-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3562-lubancat-1hs-mipi-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3562-lubancat-1hs-mipi-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3562-lubancat-1hs-mipi-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3562-lubancat-1hs-mipi-generic-overlay.dtbo \
 	rk3562-lubancat-1hs-cam0-imx415-3840x2160-15fps-overlay.dtbo \
 	rk3562-lubancat-1hs-cam0-imx415-1920x1080-60fps-overlay.dtbo \
 	rk3562-lubancat-1hs-cam1-imx415-3840x2160-15fps-overlay.dtbo \
@@ -62,9 +53,17 @@ dtbo-$(CONFIG_CPU_RK3562) += \
 	rk3562-lubancat-1hs-cam1-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3562-lubancat-1hs-cam2-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3562-lubancat-1hs-cam3-gc4653-2560x1440-30fps-overlay.dtbo \
+	rk3562-lubancat-1hs-dsi-vp0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3562-lubancat-1hs-dsi-vp0-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3562-lubancat-1hs-dsi-vp0-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3562-lubancat-1hs-dsi-vp0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3562-lubancat-1hs-dsi-vp0-generic-overlay.dtbo \
+	rk3562-lubancat-1hs-gm8775c-lvds-1280x800-10.1inch-bsdn10-overlay.dtbo \
+	rk3562-lubancat-1hs-rs485-1-overlay.dtbo \
+	rk3562-lubancat-1hs-rs485-2-overlay.dtbo \
 	rk3562-lubancat-1hs-test-cam0-imx415-3840x2160-30fps-overlay.dtbo \
 	rk3562-lubancat-1hs-test-cam1-imx415-3840x2160-30fps-overlay.dtbo
-	
+
 
 dtbo-$(CONFIG_CPU_RK3568) += \
 	rk356x-lubancat-csi0-ov8858-3264x2448-15fps-overlay.dtbo \
@@ -76,13 +75,14 @@ dtbo-$(CONFIG_CPU_RK3568) += \
 	rk356x-lubancat-csi1-ov8858-3264x2448-15fps-overlay.dtbo \
 	rk356x-lubancat-csi1-ov8858-1632x1224-30fps-overlay.dtbo \
 	rk356x-lubancat-gmac1-disabled-overlay.dtbo \
+	rk356x-lubancat-i2c3-m0-40pin-test-tca9535-overlay.dtbo \
 	rk356x-lubancat-i2c3-m0-overlay.dtbo \
 	rk356x-lubancat-i2c3-m1-overlay.dtbo \
 	rk356x-lubancat-i2c5-m0-overlay.dtbo \
+	rk356x-lubancat-i2c5-m0-disable-overlay.dtbo \
 	rk356x-lubancat-i2c3-m0-rtc-overlay.dtbo \
 	rk356x-lubancat-i2c3-m1-rtc-overlay.dtbo \
 	rk356x-lubancat-i2c5-m0-rtc-overlay.dtbo \
-	rk356x-lubancat-i2c3-m0-40pin-test-tca9535-overlay.dtbo \
 	rk356x-lubancat-pcie2x1-disabled-overlay.dtbo \
 	rk356x-lubancat-pwm3-ir-overlay.dtbo \
 	rk356x-lubancat-pwm7-ir-overlay.dtbo \
@@ -98,8 +98,8 @@ dtbo-$(CONFIG_CPU_RK3568) += \
 	rk356x-lubancat-pwm14-m1-overlay.dtbo \
 	rk356x-lubancat-pwm15-ir-m0-overlay.dtbo \
 	rk356x-lubancat-pwm15-ir-m1-overlay.dtbo \
-	rk356x-lubancat-spi3-m1-overlay.dtbo \
 	rk356x-lubancat-spi3-m1-gpio-cs-overlay.dtbo \
+	rk356x-lubancat-spi3-m1-overlay.dtbo \
 	rk356x-lubancat-uart3-m0-overlay.dtbo \
 	rk356x-lubancat-uart3-m1-overlay.dtbo \
 	rk356x-lubancat-uart4-m1-overlay.dtbo \
@@ -110,81 +110,79 @@ dtbo-$(CONFIG_CPU_RK3568) += \
 	rk356x-lubancat-uart9-m1-overlay.dtbo \
 	rk3566-lubancat-0-spi3-m1-gpio-cs-overlay.dtbo \
 	rk3566-lubancat-0-xl9535-overlay.dtbo \
-	rk3566-lubancat-1-xl9535-overlay.dtbo \
 	rk3566-lubancat-1-i2c0-rtc-bm8563-overlay.dtbo \
+	rk3566-lubancat-1-xl9535-overlay.dtbo \
+	rk3566-lubancat-1h-dsi1-vp0-generic-overlay.dtbo \
+	rk3566-lubancat-1h-edp-vp0-bsdn81-overlay.dtbo \
+	rk3566-lubancat-1h-edp-vp0-overlay.dtbo \
+	rk3566-lubancat-1h-gm8775c-lvds-1280x800-10.1inch-bsd206-overlay.dtbo \
+	rk3566-lubancat-1h-gm8775c-lvds-1280x800-10.1inch-bsdn10-overlay.dtbo \
+	rk3566-lubancat-1h-gm8775c-lvds-800x1280-10.1inch-overlay.dtbo \
+	rk3566-lubancat-1h-lvds-edp-touch-overlay.dtbo \
 	rk3566-lubancat-1h-rs485-1-overlay.dtbo \
 	rk3566-lubancat-1h-rs485-2-overlay.dtbo \
-	rk3566-lubancat-1h-edp-in-vp0-overlay.dtbo \
-	rk3566-lubancat-1h-lvds-10.1-in-vp0-overlay.dtbo \
-	rk3566-lubancat-1h-lvds-edp-touch-overlay.dtbo \
-	rk3566-lubancat-1h-dsi1-in-vp0-generic-overlay.dtbo \
-	rk3566-lubancat-1h-bsd206-lvds-in-vp0-overlay.dtbo \
-	rk3566-lubancat-1h-bsdn10-lvds-in-vp0-overlay.dtbo \
-	rk3566-lubancat-1h-bsdn81-edp-in-vp0-overlay.dtbo \
+	rk3566-lubancat-1io-dsi0-vp0-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3566-lubancat-1io-dsi0-vp0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3566-lubancat-1io-dsi0-vp0-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3566-lubancat-1io-dsi0-vp0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3566-lubancat-1io-dsi0-vp0-generic-overlay.dtbo \
+	rk3566-lubancat-1io-dsi1-vp0-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3566-lubancat-1io-dsi1-vp0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3566-lubancat-1io-dsi1-vp0-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3566-lubancat-1io-dsi1-vp0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3566-lubancat-1io-dsi1-vp0-generic-overlay.dtbo \
+	rk3566-lubancat-1io-edp-touch-overlay.dtbo \
+	rk3566-lubancat-1io-edp-vp0-overlay.dtbo \
 	rk3566-lubancat-1io-rs485-1-overlay.dtbo \
 	rk3566-lubancat-1io-rs485-2-overlay.dtbo \
-	rk3566-lubancat-1io-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3566-lubancat-1io-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3566-lubancat-1io-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3566-lubancat-1io-dsi0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3566-lubancat-1io-dsi0-in-vp0-generic-overlay.dtbo \
-	rk3566-lubancat-1io-dsi1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3566-lubancat-1io-dsi1-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3566-lubancat-1io-dsi1-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3566-lubancat-1io-dsi1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3566-lubancat-1io-dsi1-in-vp0-generic-overlay.dtbo \
-	rk3566-lubancat-1io-edp-in-vp0-overlay.dtbo \
-	rk3566-lubancat-1io-edp-touch-overlay.dtbo \
-	rk3566-lubancat-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3566-lubancat-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3566-lubancat-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3566-lubancat-dsi0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3566-lubancat-dsi0-generic-overlay.dtbo \
+	rk3566-lubancat-dsi0-vp0-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3566-lubancat-dsi0-vp0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3566-lubancat-dsi0-vp0-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3566-lubancat-dsi0-vp0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3566-lubancat-dsi0-vp0-generic-overlay.dtbo \
 	rk3566-lubancat-msata-overlay.dtbo \
+	rk3568-lubancat-2-dsi0-vp1-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3568-lubancat-2-dsi0-vp1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3568-lubancat-2-dsi0-vp1-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3568-lubancat-2-dsi0-vp1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3568-lubancat-2-dsi0-vp1-generic-overlay.dtbo \
+	rk3568-lubancat-2-dsi1-vp0-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3568-lubancat-2-dsi1-vp0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3568-lubancat-2-dsi1-vp0-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3568-lubancat-2-dsi1-vp0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3568-lubancat-2-dsi1-vp0-generic-overlay.dtbo \
 	rk3568-lubancat-2-xl9535-overlay.dtbo \
-	rk3568-lubancat-2n-xl9535-overlay.dtbo \
-	rk3568-lubancat-2-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3568-lubancat-2-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3568-lubancat-2-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3568-lubancat-2-dsi0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3568-lubancat-2-dsi0-in-vp1-generic-overlay.dtbo \
-	rk3568-lubancat-2-dsi1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3568-lubancat-2-dsi1-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3568-lubancat-2-dsi1-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3568-lubancat-2-dsi1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3568-lubancat-2-dsi1-in-vp0-generic-overlay.dtbo \
-	rk3568-lubancat-2h-generic-overlay.dtbo \
+	rk3568-lubancat-2h-dsi1-vp1-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3568-lubancat-2h-dsi1-vp1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3568-lubancat-2h-dsi1-vp1-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3568-lubancat-2h-dsi1-vp1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3568-lubancat-2h-dsi1-vp1-generic-overlay.dtbo \
+	rk3568-lubancat-2h-edp-vp1-overlay.dtbo \
+	rk3568-lubancat-2h-gm8775c-lvds-1280x800-10.1inch-bsdn10-overlay.dtbo \
+	rk3568-lubancat-2io-edp-vp1-overlay.dtbo \
 	rk3568-lubancat-2io-rs485-1-overlay.dtbo \
 	rk3568-lubancat-2io-rs485-2-overlay.dtbo \
-	rk3568-lubancat-2io-edp-in-vp1-overlay.dtbo \
+	rk3568-lubancat-2n-xl9535-overlay.dtbo \
 	rk3568-lubancat-can1-m0-overlay.dtbo \
 	rk3568-lubancat-can1-m1-overlay.dtbo \
 	rk3568-lubancat-can2-m0-overlay.dtbo \
-	rk3568-lubancat-canfd1-m0-overlay.dtbo \
-	rk3568-lubancat-canfd1-m1-overlay.dtbo \
-	rk3568-lubancat-canfd2-m0-overlay.dtbo \
-	rk3568-lubancat-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3568-lubancat-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3568-lubancat-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3568-lubancat-dsi0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3568-lubancat-dsi0-720p-overlay.dtbo \
-	rk3568-lubancat-dsi0-rpi-overlay.dtbo \
-	rk3568-lubancat-dsi0-generic-overlay.dtbo \
+	rk3568-lubancat-dsi0-vp1-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3568-lubancat-dsi0-vp1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3568-lubancat-dsi0-vp1-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3568-lubancat-dsi0-vp1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3568-lubancat-dsi0-vp1-generic-overlay.dtbo \
 	rk3568-lubancat-edp-touch-overlay.dtbo \
 	rk3568-lubancat-hdmi-disabled-overlay.dtbo \
-	rk3568-lubancat-msata-overlay.dtbo \
-	rk3568-lubancat-2h-edp-in-vp1-overlay.dtbo \
-	rk3568-lubancat-2h-dsi1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3568-lubancat-2h-dsi1-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3568-lubancat-2h-dsi1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3568-lubancat-2h-dsi1-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3568-lubancat-2h-bsdn10-lvds-in-vp0-overlay.dtbo
+	rk3568-lubancat-msata-overlay.dtbo
+
 
 dtbo-$(CONFIG_CPU_RK3576) += \
 	rk3576-lubancat-can0-m2-overlay.dtbo \
 	rk3576-lubancat-can1-m3-overlay.dtbo \
+	rk3576-lubancat-dsi-vp2-virtual-screen-overlay.dtbo \
 	rk3576-lubancat-i2c0-m1-overlay.dtbo \
 	rk3576-lubancat-i2c4-m1-overlay.dtbo \
+	rk3576-lubancat-i2c7-m1-40pin-test-tca9535-overlay.dtbo \
 	rk3576-lubancat-i2c7-m1-overlay.dtbo \
 	rk3576-lubancat-i2c7-m2-overlay.dtbo \
 	rk3576-lubancat-i2c8-m2-overlay.dtbo \
@@ -208,22 +206,18 @@ dtbo-$(CONFIG_CPU_RK3576) += \
 	rk3576-lubancat-uart7-m0-overlay.dtbo \
 	rk3576-lubancat-uart8-m2-overlay.dtbo \
 	rk3576-lubancat-usb20-overlay.dtbo \
-	rk3576-lubancat-3io-rs485-1-overlay.dtbo \
-	rk3576-lubancat-3io-rs485-2-overlay.dtbo \
 	rk3576-lubancat-rgmii-gmac1-overlay.dtbo \
 	rk3576-lubancat-sata0-overlay.dtbo \
-	rk3576-lubancat-i2c7-m1-40pin-test-tca9535-overlay.dtbo \
-	rk3576-lubancat-3-xl9535-overlay.dtbo \
-	rk3576-lubancat-3-cam0-imx415-overlay.dtbo \
-	rk3576-lubancat-3-cam1-imx415-overlay.dtbo \
-	rk3576-lubancat-3-cam2-imx415-overlay.dtbo \
-	rk3576-lubancat-3-cam3-imx415-overlay.dtbo \
-	rk3576-lubancat-3-cam4-imx415-overlay.dtbo \
-	rk3576-lubancat-3-cam0-imx415-1080p-overlay.dtbo \
-	rk3576-lubancat-3-cam1-imx415-1080p-overlay.dtbo \
-	rk3576-lubancat-3-cam2-imx415-1080p-overlay.dtbo \
-	rk3576-lubancat-3-cam3-imx415-1080p-overlay.dtbo \
-	rk3576-lubancat-3-cam4-imx415-1080p-overlay.dtbo \
+	rk3576-lubancat-3-cam0-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3576-lubancat-3-cam1-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3576-lubancat-3-cam2-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3576-lubancat-3-cam3-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3576-lubancat-3-cam4-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3576-lubancat-3-cam0-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3576-lubancat-3-cam1-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3576-lubancat-3-cam2-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3576-lubancat-3-cam3-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3576-lubancat-3-cam4-imx415-1920x1080-60fps-overlay.dtbo \
 	rk3576-lubancat-3-cam0-ov8858-3264x2448-15fps-overlay.dtbo \
 	rk3576-lubancat-3-cam0-ov8858-1632x1224-30fps-overlay.dtbo \
 	rk3576-lubancat-3-cam1-ov8858-3264x2448-15fps-overlay.dtbo \
@@ -251,12 +245,15 @@ dtbo-$(CONFIG_CPU_RK3576) += \
 	rk3576-lubancat-3-cam4-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3576-lubancat-3-hdmi-disabled-ovetlay.dtbo \
 	rk3576-lubancat-3-dp-disabled-ovetlay.dtbo \
-	rk3576-lubancat-3-dsi-800x1280-10-1inch-ebf410177-overlay.dtbo \
-	rk3576-lubancat-3-dsi-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3576-lubancat-3-dsi-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3576-lubancat-3-dsi-1080x1920-5-5inch-ebf410125-overlay.dtbo \
-	rk3576-lubancat-3-dsi-1080x1920-5-5inch-ebf410125-v1-overlay.dtbo \
-	rk3576-lubancat-3-dsi-generic-overlay.dtbo
+	rk3576-lubancat-3-dsi-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3576-lubancat-3-dsi-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3576-lubancat-3-dsi-vp2-1080x1920-5.5inch-ebf410125-v1-overlay.dtbo \
+	rk3576-lubancat-3-dsi-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3576-lubancat-3-dsi-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3576-lubancat-3-dsi-vp2-generic-overlay.dtbo \
+	rk3576-lubancat-3-xl9535-overlay.dtbo \
+	rk3576-lubancat-3io-rs485-1-overlay.dtbo \
+	rk3576-lubancat-3io-rs485-2-overlay.dtbo
 
 dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588-lubancat-i2c2-m0-overlay.dtbo \
@@ -282,8 +279,10 @@ dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588-lubancat-pwm14-m1-overlay.dtbo \
 	rk3588-lubancat-pwm14-m2-overlay.dtbo \
 	rk3588-lubancat-pwm15-ir-m3-overlay.dtbo \
+	rk3588-lubancat-pwm15-ir-m1-overlay.dtbo \
 	rk3588-lubancat-spi0-m1-overlay.dtbo \
 	rk3588-lubancat-spi0-m2-overlay.dtbo \
+	rk3588-lubancat-spi1-m1-gpio-cs-overlay.dtbo \
 	rk3588-lubancat-uart0-m2-overlay.dtbo \
 	rk3588-lubancat-uart1-m1-overlay.dtbo \
 	rk3588-lubancat-uart3-m0-overlay.dtbo \
@@ -296,12 +295,9 @@ dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588-lubancat-can0-m0-overlay.dtbo \
 	rk3588-lubancat-can1-m1-overlay.dtbo \
 	rk3588-lubancat-can2-m0-overlay.dtbo \
-	rk3588-lubancat-canfd0-m0-overlay.dtbo \
-	rk3588-lubancat-canfd1-m1-overlay.dtbo \
-	rk3588-lubancat-canfd2-m0-overlay.dtbo \
-	rk3588-lubancat-msata-overlay.dtbo \
+	rk3588-lubancat-dp0-vp1-overlay.dtbo \
 	rk3588-lubancat-dsi1-vp3-virtual-screen-overlay.dtbo \
-	rk3588-lubancat-5-xl9535-overlay.dtbo \
+	rk3588-lubancat-hdmi-8k-overlay.dtbo \
 	rk3588-lubancat-i2c3-m0-40pin-test-tca9535-overlay.dtbo \
 	rk3588-lubancat-5-cam0-ov8858-3264x2448-15fps-overlay.dtbo \
 	rk3588-lubancat-5-cam1-ov8858-3264x2448-15fps-overlay.dtbo \
@@ -333,59 +329,62 @@ dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588-lubancat-5-cam3-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3588-lubancat-5-cam4-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3588-lubancat-5-cam5-gc4653-2560x1440-30fps-overlay.dtbo \
-	rk3588-lubancat-5-cam0-imx415-overlay.dtbo \
-	rk3588-lubancat-5-cam1-imx415-overlay.dtbo \
-	rk3588-lubancat-5-cam2-imx415-overlay.dtbo \
-	rk3588-lubancat-5-cam3-imx415-overlay.dtbo \
-	rk3588-lubancat-5-cam4-imx415-overlay.dtbo \
-	rk3588-lubancat-5-cam5-imx415-overlay.dtbo \
-	rk3588-lubancat-5-cam0-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5-cam1-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5-cam2-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5-cam3-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5-cam4-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5-cam5-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5-dsi0-vp2-1080p-overlay.dtbo \
-	rk3588-lubancat-5-dsi1-vp3-1080p-overlay.dtbo \
-	rk3588-lubancat-5-dsi0-vp2-1024x600-overlay.dtbo \
-	rk3588-lubancat-5-dsi1-vp3-1024x600-overlay.dtbo \
-	rk3588-lubancat-5-dsi0-vp2-800x1280-overlay.dtbo \
-	rk3588-lubancat-5-dsi1-vp3-800x1280-overlay.dtbo \
+	rk3588-lubancat-5-cam0-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588-lubancat-5-cam1-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588-lubancat-5-cam2-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5-cam3-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5-cam4-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5-cam5-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5-cam0-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5-cam1-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5-cam2-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5-cam3-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5-cam4-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5-cam5-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5-dsi0-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588-lubancat-5-dsi0-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588-lubancat-5-dsi0-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588-lubancat-5-dsi0-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
 	rk3588-lubancat-5-dsi0-vp2-generic-overlay.dtbo \
+	rk3588-lubancat-5-dsi1-vp3-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588-lubancat-5-dsi1-vp3-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588-lubancat-5-dsi1-vp3-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588-lubancat-5-dsi1-vp3-1080x1920-5.5inch-ebf410125-overlay.dtbo \
 	rk3588-lubancat-5-dsi1-vp3-generic-overlay.dtbo \
-	rk3588-lubancat-5-v2-xl9535-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi0-vp2-800x1280-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi1-vp3-800x1280-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi0-vp2-1080p-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi1-vp3-1080p-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi0-vp2-1024x600-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi1-vp3-1024x600-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi0-vp2-generic-overlay.dtbo \
-	rk3588-lubancat-5-v2-dsi1-vp3-generic-overlay.dtbo \
-	rk3588-lubancat-5-v2-edp-vp2-overlay.dtbo \
 	rk3588-lubancat-5-edp-vp2-overlay.dtbo \
-	rk3588-lubancat-5-hdmi-8k-overlay.dtbo \
-	rk3588-lubancat-5-hdmi-rx-overlay.dtbo \
 	rk3588-lubancat-5-hdmi0-vp0-overlay.dtbo \
 	rk3588-lubancat-5-hdmi1-vp0-overlay.dtbo \
 	rk3588-lubancat-5-hdmi1-vp2-overlay.dtbo \
-	rk3588-lubancat-5-dp0-vp1-disabled-overlay.dtbo \
+	rk3588-lubancat-5-hdmi-rx-overlay.dtbo \
+	rk3588-lubancat-5-xl9535-overlay.dtbo \
+	rk3588-lubancat-5-sata0-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi0-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi1-vp3-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi0-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi1-vp3-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi0-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi1-vp3-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi0-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi1-vp3-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi0-vp2-generic-overlay.dtbo \
+	rk3588-lubancat-5-v2-dsi1-vp3-generic-overlay.dtbo \
+	rk3588-lubancat-5-v2-edp-vp2-overlay.dtbo \
+	rk3588-lubancat-5-v2-xl9535-overlay.dtbo \
 	rk3588-lubancat-5io-rs485-1-overlay.dtbo \
 	rk3588-lubancat-5io-rs485-2-overlay.dtbo \
-	rk3588-lubancat-5io-display-8k-overlay.dtbo \
+	rk3588-lubancat-5io-sata2-overlay.dtbo \
 	rk3588-lubancat-5io-hdmi0-vp0-overlay.dtbo \
 	rk3588-lubancat-5io-hdmi1-vp0-overlay.dtbo \
-	rk3588-lubancat-5io-hdmi1-vp1-overlay.dtbo \
 	rk3588-lubancat-5io-hdmi1-vp2-overlay.dtbo \
-	rk3588-lubancat-5io-dp0-vp0-overlay.dtbo \
-	rk3588-lubancat-5io-dp0-vp2-overlay.dtbo \
-	rk3588-lubancat-5io-dsi0-vp2-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-dsi0-vp2-1024x600-overlay.dtbo \
-	rk3588-lubancat-5io-dsi0-vp2-800x1280-overlay.dtbo \
+	rk3588-lubancat-5io-dsi0-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588-lubancat-5io-dsi0-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588-lubancat-5io-dsi0-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588-lubancat-5io-dsi0-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
 	rk3588-lubancat-5io-dsi0-vp2-generic-overlay.dtbo \
-	rk3588-lubancat-5io-dsi1-vp3-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-dsi1-vp3-1024x600-overlay.dtbo \
-	rk3588-lubancat-5io-dsi1-vp3-800x1280-overlay.dtbo \
+	rk3588-lubancat-5io-dsi1-vp3-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588-lubancat-5io-dsi1-vp3-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588-lubancat-5io-dsi1-vp3-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588-lubancat-5io-dsi1-vp3-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
 	rk3588-lubancat-5io-dsi1-vp3-generic-overlay.dtbo \
 	rk3588-lubancat-5io-hdmi-rx-overlay.dtbo \
 	rk3588-lubancat-5io-cam0-ov8858-3264x2448-15fps-overlay.dtbo \
@@ -418,27 +417,28 @@ dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588-lubancat-5io-cam3-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3588-lubancat-5io-cam4-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3588-lubancat-5io-cam5-gc4653-2560x1440-30fps-overlay.dtbo \
-	rk3588-lubancat-5io-cam0-imx415-overlay.dtbo \
-	rk3588-lubancat-5io-cam1-imx415-overlay.dtbo \
-	rk3588-lubancat-5io-cam2-imx415-overlay.dtbo \
-	rk3588-lubancat-5io-cam3-imx415-overlay.dtbo \
-	rk3588-lubancat-5io-cam4-imx415-overlay.dtbo \
-	rk3588-lubancat-5io-cam5-imx415-overlay.dtbo \
-	rk3588-lubancat-5io-cam0-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-cam1-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-cam2-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-cam3-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-cam4-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-cam5-imx415-1080p-overlay.dtbo \
-	rk3588-lubancat-5io-hdmi0-disabled-overlay.dtbo \
-	rk3588s-lubancat-4-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3588s-lubancat-4-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3588s-lubancat-4-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3588s-lubancat-4-dsi0-generic-overlay.dtbo \
-	rk3588s-lubancat-4-dsi1-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3588s-lubancat-4-dsi1-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3588s-lubancat-4-dsi1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3588s-lubancat-4-dsi1-generic-overlay.dtbo \
+	rk3588-lubancat-5io-cam0-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam1-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam2-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam3-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam4-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam5-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam0-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam1-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam2-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam3-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam4-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588-lubancat-5io-cam5-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4-dsi0-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588s-lubancat-4-dsi0-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588s-lubancat-4-dsi0-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588s-lubancat-4-dsi0-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588s-lubancat-4-dsi0-vp2-generic-overlay.dtbo \
+	rk3588s-lubancat-4-dsi1-vp3-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588s-lubancat-4-dsi1-vp3-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588s-lubancat-4-dsi1-vp3-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588s-lubancat-4-dsi1-vp3-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588s-lubancat-4-dsi1-vp3-generic-overlay.dtbo \
 	rk3588s-lubancat-4-cam0-ov8858-3264x2448-15fps-overlay.dtbo \
 	rk3588s-lubancat-4-cam1-ov8858-3264x2448-15fps-overlay.dtbo \
 	rk3588s-lubancat-4-cam2-ov8858-3264x2448-15fps-overlay.dtbo \
@@ -454,41 +454,68 @@ dtbo-$(CONFIG_CPU_RK3588) += \
 	rk3588s-lubancat-4-cam0-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3588s-lubancat-4-cam1-gc4653-2560x1440-30fps-overlay.dtbo \
 	rk3588s-lubancat-4-cam2-gc4653-2560x1440-30fps-overlay.dtbo \
-	rk3588s-lubancat-4-cam0-imx415-overlay.dtbo \
-	rk3588s-lubancat-4-cam1-imx415-overlay.dtbo \
-	rk3588s-lubancat-4-cam2-imx415-overlay.dtbo \
-	rk3588s-lubancat-4-cam0-imx415-1080p-overlay.dtbo \
-	rk3588s-lubancat-4-cam1-imx415-1080p-overlay.dtbo \
-	rk3588s-lubancat-4-cam2-imx415-1080p-overlay.dtbo \
-	rk3588s-lubancat-4-hdmi0-overlay.dtbo \
+	rk3588s-lubancat-4-cam0-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588s-lubancat-4-cam1-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588s-lubancat-4-cam2-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588s-lubancat-4-cam0-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4-cam1-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4-cam2-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4-hdmi0-vp0-overlay.dtbo \
 	rk3588s-lubancat-4-xl9535-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi0-generic-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi1-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi1-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3588s-lubancat-4-v1-dsi1-generic-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi0-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi0-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi0-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi0-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi0-vp2-generic-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi1-vp3-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi1-vp3-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi1-vp3-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi1-vp3-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588s-lubancat-4-v1-dsi1-vp3-generic-overlay.dtbo \
 	rk3588s-lubancat-4-v1-xl9535-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi0-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi0-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi0-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi0-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi0-generic-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi1-generic-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi1-800x1280-10.1inch-ebf410177-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi1-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi1-1024x600-7inch-ebf410173-overlay.dtbo \
-	rk3588s-lubancat-4io-dsi1-1080x1920-5.5inch-ebf410125-overlay.dtbo \
-	rk3588s-lubancat-4io-cam0-imx415-overlay.dtbo \
-	rk3588s-lubancat-4io-cam1-imx415-overlay.dtbo \
-	rk3588s-lubancat-4io-cam2-imx415-overlay.dtbo \
-	rk3588s-lubancat-4io-cam3-imx415-overlay.dtbo \
-	rk3588s-lubancat-4io-hdmi0-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi0-vp2-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi0-vp2-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi0-vp2-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi0-vp2-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi0-vp2-generic-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi1-vp3-generic-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi1-vp3-800x1280-10.1inch-ebf410177-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi1-vp3-800x1280-10.1inch-s8001280b1060b-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi1-vp3-1024x600-7inch-ebf410173-overlay.dtbo \
+	rk3588s-lubancat-4io-dsi1-vp3-1080x1920-5.5inch-ebf410125-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-ov8858-3264x2448-15fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-ov8858-1632x1224-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-gc08a8-3264x2448-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-gc2053-1920x1080-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam0-gc4653-2560x1440-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-imx415-3840x2160-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-ov8858-3264x2448-15fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-ov8858-1632x1224-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-gc08a8-3264x2448-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-gc2053-1920x1080-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam1-gc4653-2560x1440-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-ov8858-3264x2448-15fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-ov8858-1632x1224-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-gc08a8-3264x2448-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-gc2053-1920x1080-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam2-gc4653-2560x1440-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-imx415-3840x2160-15fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-imx415-1920x1080-60fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-ov8858-3264x2448-15fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-ov8858-1632x1224-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-gc08a8-3264x2448-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-gc2053-1920x1080-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-cam3-gc4653-2560x1440-30fps-overlay.dtbo \
+	rk3588s-lubancat-4io-hdmi0-vp0-overlay.dtbo \
 	rk3588s-lubancat-i2c5-m3-40pin-test-tca9535-overlay.dtbo \
-	rk3588s-lubancat-dp0-in-vp1-overlay.dtbo \
-	rk3588s-lubancat-dp0-in-vp2-overlay.dtbo \
+	rk3588s-lubancat-dp0-vp1-overlay.dtbo \
+	rk3588s-lubancat-dp0-vp2-overlay.dtbo \
+	rk3588s-lubancat-dsi1-vp3-virtual-screen-overlay.dtbo \
 	rk3588s-lubancat-hdmi0-8k-overlay.dtbo \
 	rk3588s-lubancat-sata0-overlay.dtbo
 

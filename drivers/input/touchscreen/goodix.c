@@ -1067,7 +1067,7 @@ retry_get_irq_gpio:
 	default:
 		if (ts->gpiod_int && ts->gpiod_rst) {
 			ts->reset_controller_at_probe = true;
-			ts->load_cfg_from_disk = false;
+			ts->load_cfg_from_disk = true;
 			ts->irq_pin_access_method = IRQ_PIN_ACCESS_GPIO;
 		}
 	}
@@ -1306,7 +1306,7 @@ static int touchscreen_parse_properties_from_firmware(struct input_dev *input, b
 		absinfo->minimum = 0;
 	}
 
-	prop->invert_y = touch_prop->invert_x;
+	prop->invert_y = touch_prop->invert_y;
 	if (prop->invert_y) {
 		absinfo = &input->absinfo[axis_y];
 		absinfo->maximum -= absinfo->minimum;
